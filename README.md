@@ -60,7 +60,40 @@ You need a web browser and a code editor. No complex setup is required to run th
     ```sh
     cd TrialMatch-Plus
     ```
-3.  Open `index.html` in your favorite web browser. That's it!
+3.  Configure Firebase:
+This project uses Firebase for its backend. You'll need to create your own Firebase project to run it.
+
+Go to the Firebase Console and create a new project.
+
+Add a new "Web App" to your project.
+
+Find your Firebase configuration keys (apiKey, authDomain, etc.).
+
+In the project's root directory, create a new file named firebase-config.js.
+
+Paste your configuration into this file like so:
+
+JavaScript
+```sh
+// firebase-config.js
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+```
+Finally, make sure your index.html file has a script tag pointing to this new file before the main script.js file:
+
+HTML
+```sh
+<script src="firebase-config.js"></script>
+<script src="script.js"></script>
+```
+Launch the App:
+Simply open the index.html file in your web browser. You're all set
 
 ---
 
