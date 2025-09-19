@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrialMatch+: Your Clinical Trial Companion</title>
+    
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- jsPDF for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="container navbar">
+          <a href="#home" class="logo">TrialMatch+</a>
+            <nav>
+                <ul class="nav-links" id="nav-links">
+                    <!-- Links will be populated by JS based on user role -->
+                </ul>
+            </nav>
+            <div class="nav-utils">
+                <div class="theme-switch-wrapper">
+                    <label class="theme-switch" for="theme-checkbox">
+                        <input type="checkbox" id="theme-checkbox" />
+                        <div class="slider"></div>
+                    </label>
+                </div>
+                <div id="user-profile-icon" class="d-none" style="cursor: pointer; transition: transform 0.3s;">
+                    <!-- Image and Edit icon will be populated by JS -->
+                </div>
+                <div id="auth-container">
+                    <button id="login-signup-btn" class="btn btn-primary"><i class="fas fa-sign-in-alt"></i> Login / Sign Up</button>
+                </div>
+                <button class="nav-toggle" id="nav-toggle"><i class="fas fa-bars"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main id="patient-view">
+        <section id="home" class="hero">
+            <div class="container">
+                <h1>From confusion to clarity—your clinical trial companion.</h1>
+                <p>TrialMatch+ uses AI to simplify complex medical jargon and connect you with clinical trials that fit your profile. Take control of your health journey today.</p>
+                <a href="#app-interface" class="btn btn-primary"><i class="fas fa-search"></i> Find a Trial Now</a>
+            </div>
+        </section>
+
+        <section id="features" class="section">
+            <div class="container">
+                <h2 class="section-title">Why Choose TrialMatch+?</h2>
+                <div class="grid grid-3">
+                    <div class="card glass-card feature-card">
+                        <i class="fas fa-brain"></i>
+                        <h3>AI-Powered Explanations</h3>
+                        <p>Our smart AI translates complicated trial descriptions into simple, easy-to-understand language.</p>
+                    </div>
+                    <div class="card glass-card feature-card">
+                        <i class="fas fa-user-check"></i>
+                        <h3>Personalized Matching</h3>
+                        <p>Complete your profile to get a curated list of trials that match your age, condition, and location.</p>
+                    </div>
+                    <div class="card glass-card feature-card">
+                        <i class="fas fa-user-md"></i>
+                        <h3>Doctor-Patient Collaboration</h3>
+                        <p>A dedicated portal for doctors to recommend trials and track patient interest securely.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="how-it-works" class="section">
+            <div class="container">
+                <h2 class="section-title">Simple Steps to a Healthier Future</h2>
+                <div class="grid grid-3">
+                    <div class="how-it-works-step">
+                        <div class="icon"><i class="fas fa-user-edit"></i></div>
+                        <h3>1. Create Your Profile</h3>
+                        <p>Securely sign up and tell us about your health needs. Your data helps us find the perfect match.</p>
+                    </div>
+                    <div class="how-it-works-step">
+                        <div class="icon"><i class="fas fa-search-location"></i></div>
+                        <h3>2. Discover Trials</h3>
+                        <p>Browse a personalized list of clinical trials, simplified with our AI explanations so you understand every detail.</p>
+                    </div>
+                     <div class="how-it-works-step">
+                        <div class="icon"><i class="fas fa-heart"></i></div>
+                        <h3>3. Save & Connect</h3>
+                        <p>Save trials you're interested in and connect with research teams or discuss them with your doctor.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="app-interface">
+            <div class="container">
+                <h2 class="section-title">Find Your Trial</h2>
+
+                <div id="patient-profile-card" class="card glass-card d-none" style="margin-bottom: 30px; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                        <h3 style="margin: 0;">Your Patient Profile</h3>
+                        </div>
+                    <div id="patient-profile-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; border-bottom: 1px solid rgba(156, 163, 175, 0.3); padding-bottom: 20px;">
+                        </div>
+                    
+                    <form id="filter-form">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; align-items: end;">
+                            <div class="form-group">
+                                <label for="condition">Filter by Condition</label>
+                                <input type="text" id="condition" placeholder="e.g., Diabetes, Asthma">
+                            </div>
+                            <div class="form-group">
+                                <label for="location">Filter by Location</label>
+                                 <div style="display: flex; gap: 10px; align-items:center;">
+                                    <input type="text" id="location" placeholder="e.g., Mumbai" style="flex-grow:1;">
+                                    <button type="button" id="detect-location-filter-btn" class="btn btn-secondary" title="Use my current location"><i class="fas fa-map-marker-alt"></i></button>
+                                </div>
+                            </div>
+                            <div class="form-group" style="flex-direction: row; gap: 10px; align-items: end; min-width: 200px;">
+                                <button type="submit" class="btn btn-primary" style="flex-grow: 1;"><i class="fas fa-filter"></i> Filter</button>
+                                <button id="edit-profile-card-btn" type="button" class="btn btn-secondary"><i class="fas fa-edit"></i> Edit</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                 <div id="eligibility-legend" class="card glass-card d-none" style="padding: 15px; margin-bottom: 20px; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 15px 25px;">
+                    <div class="info-item" style="font-size: 0.9rem; font-weight: 500;"><span class="eligibility-indicator eligible" style="margin-right: 8px;"></span>Eligible for you</div>
+                    <div class="info-item" style="font-size: 0.9rem; font-weight: 500;"><span class="eligibility-indicator ineligible" style="margin-right: 8px;"></span>Not eligible for you</div>
+                    <div class="info-item" style="font-size: 0.9rem; color: #6b7280;"><i class="fas fa-info-circle" style="margin-right: 5px;"></i>Complete profile for age check.</div>
+                </div>
+                <div id="trials-container"></div>
+                <p id="no-results" class="d-none">No trials found matching your criteria. Please try different filters.</p>
+            </div>
+        </section>
+
+        <section id="social-proof" class="section">
+            <div class="container">
+                <h2 class="section-title">Trusted by Patients and Doctors</h2>
+                <div class="grid grid-3">
+                    <div class="card glass-card testimonial-card">
+                        <img src="https://placehold.co/100x100/A8C0FF/3f2b96?text=AP" alt="Anjali P.">
+                        <p class="quote">"TrialMatch+ took the fear out of finding a clinical trial. The simple explanations made me feel confident in my choices."</p>
+                        <strong>- Anjali P., Patient</strong>
+                    </div>
+                    <div class="card glass-card testimonial-card">
+                        <img src="https://placehold.co/100x100/3B82F6/FFFFFF?text=Dr.S" alt="Dr. Sharma">
+                        <p class="quote">"The platform streamlines my workflow. I can easily find relevant trials for my patients and see who is interested. A game-changer."</p>
+                        <strong>- Dr. R. Sharma, Cardiologist</strong>
+                    </div>
+                     <div class="card glass-card testimonial-card">
+                        <img src="https://placehold.co/100x100/8B5CF6/FFFFFF?text=MK" alt="M. Khan">
+                        <p class="quote">"Finally, a tool that puts patients first. Finding and understanding my options has never been easier. Highly recommended!"</p>
+                        <strong>- M. Khan, Patient</strong>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="favorites-section" class="section d-none">
+            <div class="container">
+                <h2 class="section-title">My Saved Trials</h2>
+                <div id="favorites-actions" class="d-none" style="margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                     <button id="export-pdf-btn" class="btn btn-secondary"><i class="fas fa-file-pdf"></i> Export as PDF</button>
+                     <button id="compare-favorites-btn" class="btn btn-secondary"><i class="fas fa-exchange-alt"></i> Compare Saved</button>
+                </div>
+                <div id="favorites-container"></div>
+                <p id="no-favorites">You haven't saved any trials yet. Click the <i class="fas fa-heart"></i> icon on a trial to add it here.</p>
+            </div>
+        </section>
+
+        <section id="analytics" class="section">
+            <div class="container">
+                <h2 class="section-title">Trial Analytics Dashboard</h2>
+                <div class="card glass-card">
+                    <canvas id="trialsChart"></canvas>
+                </div>
+            </div>
+        </section>
+        
+        <section class="final-cta card glass-card">
+            <div class="container">
+                <h2>Ready to Take the Next Step?</h2>
+                <p>Join thousands of others finding hope and advancing medical science. Your journey to a new treatment could start today.</p>
+                <button id="cta-signup-btn" class="btn btn-primary btn-lg" style="padding: 15px 30px; font-size: 1.2rem;"><i class="fas fa-user-plus"></i> Create Your Free Account</button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- DOCTOR VIEW -->
+    <section id="doctor-dashboard" class="d-none">
+        <div class="container">
+            <h2 class="section-title">Doctor Dashboard</h2>
+            <div class="doctor-dashboard-grid">
+                <div id="add-trial-section" class="card glass-card">
+                    <h3>Add New Trial</h3>
+                    <form id="add-trial-form">
+                        <div class="form-group"><label for="new-trial-title">Title</label><input type="text" id="new-trial-title" required></div>
+                        <div class="form-group"><label for="new-trial-condition">Condition</label><input type="text" id="new-trial-condition" placeholder="e.g., Diabetes" required></div>
+                        <div class="form-group"><label for="new-trial-hospital">Hospital Name</label><input type="text" id="new-trial-hospital" placeholder="e.g., City Hospital" required></div>
+                        <div class="form-group"><label for="new-trial-location">Location (City)</label><input type="text" id="new-trial-location" required></div>
+                        <div class="form-group"><label for="new-trial-age-min">Min Age</label><input type="number" id="new-trial-age-min" required></div>
+                        <div class="form-group"><label for="new-trial-age-max">Max Age</label><input type="number" id="new-trial-age-max" required></div>
+                        <div class="form-group"><label for="new-trial-duration">Duration</label><input type="text" id="new-trial-duration" required placeholder="e.g., 6 Months"></div>
+                        <div class="form-group"><label for="new-trial-compensation">Compensation</label><input type="text" id="new-trial-compensation" required placeholder="e.g., ₹10,000"></div>
+                        <div class="form-group">
+                            <label for="new-trial-explanation">Detailed Medical Explanation</label>
+                            <textarea id="new-trial-explanation" rows="4" required placeholder="Provide the complete medical details here. Our AI will generate a simplified summary for patients."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Trial</button>
+                    </form>
+                </div>
+                <div id="doctor-main-content">
+                   <div class="doctor-dashboard-tabs">
+                        <button class="tab-btn active" data-tab="managed-trials-tab"><i class="fas fa-vials"></i> Managed Trials</button>
+                        <button class="tab-btn" data-tab="patient-leads-tab"><i class="fas fa-users"></i> Patient Leads</button>
+                    </div>
+
+                    <div id="managed-trials-tab" class="tab-content active card glass-card">
+                        <h3>Managed Trials</h3>
+                        <div id="managed-trials-container" class="list-container"></div>
+                    </div>
+
+                    <div id="patient-leads-tab" class="tab-content card glass-card">
+                        <h3>Patient Leads</h3>
+                        <p>Patients who have saved one of your trials.</p>
+                        <div id="patient-leads-container" class="list-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modals -->
+    <!-- Unified Auth Modal -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn close-btn-visible">&times;</span>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="signup">Sign Up</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form active">
+                <h3>Login to Your Account</h3>
+                <div class="form-group">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required autocomplete="current-password">
+                </div>
+                <p id="login-error" class="error-message">Invalid credentials or user not found.</p>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Login</button>
+                 <a href="#" id="forgot-password-link" style="display: block; text-align: center; margin-top: 15px;">Forgot Password?</a>
+            </form>
+
+            <!-- Sign Up Form -->
+            <form id="signup-form" class="auth-form">
+                <h3>Create an Account</h3>
+                <div class="form-group">
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" required autocomplete="new-password" minlength="6">
+                     <p class="error-message">Password must be at least 6 characters long.</p>
+                </div>
+                <div class="form-group">
+                    <label>Account Type</label>
+                    <select id="account-type" required>
+                        <option value="patient">I am a Patient</option>
+                        <option value="doctor">I am a Doctor</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="signup-name">Full Name</label>
+                    <input type="text" id="signup-name" required>
+                </div>
+                <!-- Doctor-specific fields -->
+                <div class="form-group signup-doctor-fields d-none">
+                    <label for="signup-specialization">Specialization/Degree</label>
+                    <input type="text" id="signup-specialization">
+                </div>
+                 <div class="form-group signup-doctor-fields d-none">
+                    <label for="signup-doctor-id">Doctor ID</label>
+                    <input type="text" id="signup-doctor-id" placeholder="A unique ID for patient leads">
+                </div>
+                <div class="form-group signup-doctor-fields d-none">
+                    <label for="signup-location">Your Primary Location (City)</label>
+                    <input type="text" id="signup-location">
+                </div>
+                <p id="signup-error" class="error-message">Could not create account. Please try again.</p>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Sign Up</button>
+            </form>
+            
+            <div style="text-align: center; margin: 20px 0;">OR</div>
+            <button id="google-signin-btn" class="btn btn-secondary" style="width:100%; border-color:#ccc;"><i class="fab fa-google"></i> Sign in with Google</button>
+        </div>
+    </div>
+
+   <div id="profile-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn close-btn-visible">&times;</span>
+            <h3 id="profile-modal-title">Complete Your Profile</h3>
+            <form id="profile-form">
+                <div class="form-group">
+                    <label for="profile-name">Full Name</label>
+                    <input type="text" id="profile-name" required>
+                </div>
+
+                <div class="patient-fields">
+                    <div class="form-group">
+                        <label for="profile-dob">Date of Birth</label>
+                        <input type="date" id="profile-dob" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-phone-number">WhatsApp Number</label>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="profile-country-code" style="flex: 0 0 100px;">
+                                <option value="+91">IN (+91)</option>
+                                <option value="+1">US (+1)</option>
+                                <option value="+44">UK (+44)</option>
+                                <option value="+61">AU (+61)</option>
+                                <option value="+971">AE (+971)</option>
+                            </select>
+                            <input type="tel" id="profile-phone-number" placeholder="9876543210" required pattern="\d{10,14}">
+                        </div>
+                    </div>
+                </div>
+
+              <div class="doctor-fields d-none">
+    <div class="form-group">
+        <label for="profile-specialization">Specialization</label>
+        <input type="text" id="profile-specialization">
+    </div>
+    <div class="form-group">
+        <label for="profile-doctor-whatsapp">WhatsApp Number (for patient leads)</label>
+        <input type="tel" id="profile-doctor-whatsapp" placeholder="+919876543210">
+    </div>
+    <div class="form-group">
+        <label for="profile-location">Your Primary Location (City)</label>
+        <div style="display: flex; gap: 10px; align-items:center;">
+            <input type="text" id="profile-location" style="flex-grow:1;">
+            <button type="button" id="detect-location-btn" class="btn btn-secondary"><i class="fas fa-map-marker-alt"></i></button>
+        </div>
+    </div>
+</div>
+                <p id="profile-error" class="error-message">Could not save profile. Please try again.</p>
+                <p id="profile-success" style="color:var(--accent-green); display:none;">Profile saved successfully!</p>
+                <button type="submit" id="save-profile-btn" class="btn btn-primary">Save Profile</button>
+            </form>
+        </div>
+    </div>
+    
+
+    <!-- Comparison Modal -->
+    <div id="comparison-modal" class="modal">
+        <div class="modal-content glass-card" style="max-width: 90%; width: 800px;">
+            <span class="close-btn close-btn-visible">&times;</span>
+            <h3>Compare Trials</h3>
+            <div id="comparison-content" style="overflow-x:auto;">
+                <table id="comparison-table"></table>
+            </div>
+        </div>
+    </div>
+         <button id="chatbot-toggle" class="btn btn-primary" title="Chat with Assistant">
+        <i class="fas fa-comments"></i>
+    </button>
+
+    <div id="chatbot-widget" class="glass-card d-none">
+        <div id="chatbot-header">
+            <h3>TrialMatch+ Assistant</h3>
+          <span id="chatbot-close" class="close-btn close-btn-visible">&times;</span>
+        </div>
+        <div id="chatbot-messages">
+            <div class="chat-message bot">
+                Hi! I'm your assistant. How can I help you? You can ask me things like:
+                <ul>
+                    <li>What is a clinical trial?</li>
+                    <li>How do I find a trial?</li>
+                    <li>What is a "Phase II" trial?</li>
+                </ul>
+            </div>
+        </div>
+        <div id="chatbot-input-container">
+            <input type="text" id="chatbot-input" placeholder="Ask a question..." autocomplete="off">
+            <button id="chatbot-send" class="btn btn-primary"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+    <script src="script.js" defer></script>
+</body>
+</html>
