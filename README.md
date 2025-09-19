@@ -52,7 +52,7 @@ You need a web browser and a code editor. No complex setup is required to run th
 
 1.  Clone the repo:
     ```sh
-    git clone [https://github.com/your_username/TrialMatch-Plus.git](https://github.com/your_username/TrialMatch-Plus.git)
+    git clone [https://github.com/Debojit991/TrialMatch.git]
     ```
 2.  Navigate to the project directory:
     ```sh
