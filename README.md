@@ -2,6 +2,8 @@
 
 **TrialMatch+** is a modern, responsive web application designed to bridge the gap between patients seeking medical advancements and the clinical trials that offer them. It simplifies complex medical jargon using AI-powered summaries and provides a seamless experience for both patients and healthcare professionals.
 
+🚀 View Live Demo » https://trialmatch-plus.netlify.app/
+
 
 
 
