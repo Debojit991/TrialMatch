@@ -1,104 +1,86 @@
-# TrialMatch+
+<div align="center">
 
-TrialMatch+ is a web-based platform designed to connect patients with relevant clinical trials. The application provides a dual-interface system: a patient portal for discovering and understanding trials through simplified summaries, and a doctor dashboard for managing trial listings and reviewing patient leads.
+# 🏥 TrialMatch+
+### From confusion to clarity—your clinical trial companion.
 
-## Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Firebase](https://img.shields.io/badge/firebase-%23039BE5.svg?style=flat&logo=firebase&logoColor=white)](https://firebase.google.com/)
+[![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=flat&logo=javascript&logoColor=%23F7DF1E)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 
-### Patient Portal
-* **Trial Discovery:** Search and filter clinical trials by condition and location.
-* **AI-Assisted Summaries:** Simplified trial explanations to reduce medical jargon.
-* **Profile Management:** User profiles with medical history and document uploads.
-* **Comparisons & Exports:** Compare saved trials side-by-side and export details to PDF.
-* **Community Forum:** Q&A section for patients to discuss experiences and safety.
-* **Interactive Assistant:** Voice-enabled chatbot with multilingual support (English, Bengali, Marathi, Tamil).
+<a href="[https://trialmatch-plus.netlify.app/]">
+  <img src="https://img.shields.io/badge/View_Live_Demo-3b82f6?style=for-the-badge&logo=google-chrome&logoColor=white" alt="View Live Demo" />
+</a>
 
-### Doctor Dashboard
-* **Trial Management:** Create, edit, and delete clinical trial listings.
-* **Lead Tracking:** View patients who have saved specific trials.
-* **Document Access:** Securely view medical documents shared by interested patients.
+</div>
 
-### General
-* **Authentication:** Unified login/signup with Email and Google Sign-In via Firebase.
-* **Responsive Design:** Mobile-friendly interface with glassmorphism UI.
-* **Theming:** Toggleable light and dark modes.
+---
 
-## Tech Stack
+## 📖 About
+**TrialMatch+** is a dual-interface platform bridging the gap between patients and medical research. It features a **Patient Portal** for discovering trials with AI-simplified summaries and a **Doctor Dashboard** for managing listings and patient leads.
 
-* **Frontend:** HTML5, CSS3, JavaScript (ES6+)
-* **Backend / Database:** Firebase Authentication, Firestore
-* **Libraries:**
-    * **Chart.js:** Analytics visualization
-    * **jsPDF:** PDF generation and export
-    * **Font Awesome:** Iconography
-    * **Cloudinary:** Image/Document hosting API
+---
 
-## Project Structure
+## ✨ Key Features
 
-```text
+### 🧑‍🤝‍🧑 For Patients
+| Feature | Description |
+| :--- | :--- |
+| **🔍 Discovery** | Filter clinical trials by condition and location instantly. |
+| **🧠 AI Summaries** | Complex medical jargon translated into simple language. |
+| **📂 Profile** | Manage medical history and securely upload documents. |
+| **🗣️ Assistant** | Multilingual voice chatbot (English, Bengali, Marathi, Tamil). |
+
+### 👨‍⚕️ For Doctors
+| Feature | Description |
+| :--- | :--- |
+| **📋 Management** | Create, edit, and track clinical trials effortlessly. |
+| **📈 Leads** | View real-time interest from patients for specific trials. |
+| **🔒 Security** | Access patient-shared documents via a secure viewer. |
+
+---
+
+## 🛠️ Tech Stack
+* **Frontend:** ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white) ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
+* **Backend:** ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=flat-square&logo=firebase&logoColor=black) (Auth & Firestore)
+* **Tools:** `Chart.js`, `jsPDF`, `Cloudinary API`, `Font Awesome`
+
+---
+
+## 📂 Project Structure
+
+```bash
 TrialMatch/
-├── index.html      # Main entry point containing DOM structure for all views
-├── style.css       # Global styles, themes, and responsive media queries
-├── script.js       # Application logic, Firebase config, and event handling
-├── README.md       # Project documentation
-└── LICENSE         # MIT License
-Installation
-Clone the repository
-
-Bash
-
+├── index.html      # 🏗️ Main entry point (DOM structure)
+├── style.css       # 🎨 Global styles & glassmorphism UI
+├── script.js       # ⚙️ App logic, Firebase & Events
+├── README.md       # 📄 Documentation
+└── LICENSE         # ⚖️ MIT License
+🚀 Getting Started
+1. Clone the Repository
 git clone [https://github.com/Debojit991/TrialMatch.git](https://github.com/Debojit991/TrialMatch.git)
-cd TrialMatch
-Configuration
+2. Configuration
+You must configure the external services in script.js before running:
 
-Open script.js.
+Firebase: Locate const firebaseConfig = { ... } and paste your API keys.
 
-Locate the firebaseConfig object.
+Cloudinary: Find handleFileUpload and update your cloudName and uploadPreset.
 
-Ensure the API keys and Project ID match your Firebase project settings.
+3. Run the App
+Since this is a static app, you can:
 
-Locate the Cloudinary configuration in the handleFileUpload function and update the cloud name and upload preset if necessary.
+Open index.html directly in your browser.
 
-Run the Application
+Recommended: Use the Live Server extension in VS Code for best performance.
 
-Since this is a static web application, you can open index.html directly in a modern web browser.
+🔮 Roadmap
+[ ] Backend-based AI for dynamic trial summarization.
 
-For optimal performance (and to avoid CORS issues with some APIs), it is recommended to use a local development server (e.g., Live Server for VS Code).
+[ ] Integration with ClinicalTrials.gov API.
 
-Usage
-For Patients
-Sign up as a "Patient".
+[ ] Enhanced document encryption.
 
-Complete the profile with date of birth (required for eligibility checks).
+🤝 Contributing
+Contributions are welcome! Please fork the repo and submit a PR.
 
-Use the "Find Trials" section to filter results.
-
-Click "Save" to add trials to your favorites or "Compare" to view them side-by-side.
-
-For Doctors
-Sign up as a "Doctor" (requires specialization and location).
-
-Access the dashboard to "Add New Trial".
-
-Navigate to "Patient Leads" to see users who have interacted with your trials.
-
-Configuration
-This project relies on external services which must be configured in script.js:
-
-Firebase: Requires a project with Authentication (Email/Google) and Firestore enabled.
-
-Firestore Rules: Ensure security rules allow read/write access based on user roles (see firebase.rules logic included in project).
-
-Cloudinary: Requires an unsigned upload preset for image handling.
-
-Roadmap
-Implementation of backend-based AI for dynamic trial summarization.
-
-Integration with external clinical trial APIs (e.g., ClinicalTrials.gov).
-
-Enhanced document security and encryption.
-
-Contributing
-Contributions are welcome. Please fork the repository and submit a pull request for any enhancements or bug fixes. Ensure code follows the existing style conventions.
-
-License
-This project is licensed under the MIT License.
+📄 License
+Distributed under the MIT License.
