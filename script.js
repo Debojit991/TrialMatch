@@ -361,180 +361,69 @@ if (chatbotMicBtn && recognition) {
     return age > 0 ? age : 0;
 };
 // --- MULTILINGUAL SUPPORT START ---
-    const translations = {
-        en: {
-            heroTitle: "From confusion to clarity—your clinical trial companion.",
-            heroText: "TrialMatch+ uses AI to simplify complex medical jargon and connect you with clinical trials that fit your profile.",
-            heroBtn: "Find a Trial Now",
-            featuresTitle: "Why Choose TrialMatch+?",
-            feat1Title: "AI-Powered Explanations",
-            feat1Desc: "Our smart AI translates complicated trial descriptions into simple, easy-to-understand language.",
-            feat2Title: "Personalized Matching",
-            feat2Desc: "Complete your profile to get a curated list of trials that match your age, condition, and location.",
-            feat3Title: "Doctor-Patient Collaboration",
-            feat3Desc: "A dedicated portal for doctors to recommend trials and track patient interest securely.",
-            howWorksTitle: "Simple Steps to a Healthier Future",
-            step1Title: "1. Create Your Profile",
-            step2Title: "2. Discover Trials",
-            step3Title: "3. Save & Connect",
-            findTrialTitle: "Find Your Trial",
-            filterCond: "Filter by Condition",
-            filterLoc: "Filter by Location",
-            filterBtn: "Filter",
-            editBtn: "Edit",
-            navHome: "Home",
-            navFeatures: "Features",
-            navFind: "Find Trials",
-            navSaved: "My Saved"
-        },
-        bn: {
-            heroTitle: "বিভ্রান্তি থেকে স্বচ্ছতার দিকে—আপনার ক্লিনিকাল ট্রায়াল সঙ্গী।",
-            heroText: "TrialMatch+ জটিল চিকিৎসা পরিভাষা সহজ করতে এবং আপনার প্রোফাইলের সাথে মানানসই ক্লিনিকাল ট্রায়ালের সাথে আপনাকে সংযুক্ত করতে AI ব্যবহার করে।",
-            heroBtn: "এখনই একটি ট্রায়াল খুঁজুন",
-            featuresTitle: "কেন TrialMatch+ বেছে নেবেন?",
-            feat1Title: "AI-চালিত ব্যাখ্যা",
-            feat1Desc: "আমাদের স্মার্ট AI জটিল ট্রায়াল বিবরণ সহজ, বোধগম্য ভাষায় অনুবাদ করে।",
-            feat2Title: "ব্যক্তিগতকৃত ম্যাচিং",
-            feat2Desc: "আপনার বয়স, অবস্থা এবং অবস্থানের সাথে মেলে এমন ট্রায়ালগুলির একটি তালিকা পেতে আপনার প্রোফাইল সম্পূর্ণ করুন।",
-            feat3Title: "ডাক্তার-রোগী সহযোগিতা",
-            feat3Desc: "ডাক্তারদের জন্য ট্রায়াল সুপারিশ এবং রোগীর আগ্রহ নিরাপদে ট্র্যাক করার একটি পোর্টাল।",
-            howWorksTitle: "সুস্থ ভবিষ্যতের জন্য সহজ পদক্ষেপ",
-            step1Title: "১. প্রোফাইল তৈরি করুন",
-            step2Title: "২. ট্রায়াল খুঁজুন",
-            step3Title: "৩. সেভ করুন এবং সংযুক্ত হন",
-            findTrialTitle: "আপনার ট্রায়াল খুঁজুন",
-            filterCond: "অবস্থা অনুযায়ী ফিল্টার",
-            filterLoc: "অবস্থান অনুযায়ী ফিল্টার",
-            filterBtn: "ফিল্টার",
-            editBtn: "সম্পাদনা",
-            navHome: "হোম",
-            navFeatures: "বৈশিষ্ট্য",
-            navFind: "ট্রায়াল খুঁজুন",
-            navSaved: "সংরক্ষিত"
-        },
-        mr: {
-            heroTitle: "गोंधळाकडून स्पष्टतेकडे—तुमचा क्लिनिकल ट्रायल साथी.",
-            heroText: "TrialMatch+ क्लिष्ट वैद्यकीय संज्ञा सोपी करण्यासाठी आणि तुम्हाला योग्य असलेल्या क्लिनिकल ट्रायल्सशी जोडण्यासाठी AI वापरते.",
-            heroBtn: "आता चाचणी शोधा",
-            featuresTitle: "TrialMatch+ का निवडावे?",
-            feat1Title: "AI-आधारित स्पष्टीकरण",
-            feat1Desc: "आमचे स्मार्ट AI क्लिष्ट चाचणी वर्णन सोप्या, समजण्यास सोप्या भाषेत अनुवादित करते.",
-            feat2Title: "वैयक्तिकृत जुळवणी",
-            feat2Desc: "तुमचे वय, स्थिती आणि स्थानाशी जुळणाऱ्या चाचण्यांची यादी मिळवण्यासाठी तुमचे प्रोफाइल पूर्ण करा.",
-            feat3Title: "डॉक्टर-रुग्ण सहयोग",
-            feat3Desc: "डॉक्टरांसाठी चाचण्या सुचवण्यासाठी आणि रुग्णांच्या स्वारस्याचा सुरक्षितपणे मागोवा घेण्यासाठी एक समर्पित पोर्टल.",
-            howWorksTitle: "निरोगी भविष्यासाठी सोप्या पायऱ्या",
-            step1Title: "१. तुमचे प्रोफाइल तयार करा",
-            step2Title: "२. चाचण्या शोधा",
-            step3Title: "३. सेव्ह करा आणि कनेक्ट करा",
-            findTrialTitle: "तुमची चाचणी शोधा",
-            filterCond: "स्थितीनुसार फिल्टर करा",
-            filterLoc: "स्थानानुसार फिल्टर करा",
-            filterBtn: "फिल्टर",
-            editBtn: "संपादित करा",
-            navHome: "होम",
-            navFeatures: "वैशिष्ट्ये",
-            navFind: "चाचणी शोधा",
-            navSaved: "जतन केलेले"
-        },
-        ta: {
-            heroTitle: "குழப்பத்திலிருந்து தெளிவுக்கு - உங்கள் மருத்துவ பரிசோதனை துணை.",
-            heroText: "TrialMatch+ சிக்கலான மருத்துவச் சொற்களை எளிதாக்கவும், உங்கள் சுயவிவரத்திற்குப் பொருத்தமான மருத்துவ பரிசோதனைகளுடன் உங்களை இணைக்கவும் AI ஐப் பயன்படுத்துகிறது.",
-            heroBtn: "இப்போதே சோதனையைக் கண்டறியவும்",
-            featuresTitle: "TrialMatch+ ஐ ஏன் தேர்வு செய்ய வேண்டும்?",
-            feat1Title: "AI-இயங்கும் விளக்கங்கள்",
-            feat1Desc: "எங்கள் ஸ்மார்ட் AI சிக்கலான சோதனை விளக்கங்களை எளிய, புரிந்துகொள்ளக்கூடிய மொழியில் மொழிபெயர்க்கிறது.",
-            feat2Title: "தனிப்பயனாக்கப்பட்ட பொருத்தம்",
-            feat2Desc: "உங்கள் வயது, நிலை மற்றும் இருப்பிடத்துடன் பொருந்தக்கூடிய சோதனைகளின் பட்டியலைப் பெற உங்கள் சுயவிவரத்தை முடிக்கவும்.",
-            feat3Title: "மருத்துவர்-நோயாளி ஒத்துழைப்பு",
-            feat3Desc: "மருத்துவர்கள் சோதனைகளைப் பரிந்துரைக்கவும் நோயாளியின் ஆர்வத்தைப் பாதுகாப்பாகக் கண்காணிக்கவும் ஒரு பிரத்யேக தளம்.",
-            howWorksTitle: "ஆரோக்கியமான எதிர்காலத்திற்கான எளிய படிகள்",
-            step1Title: "1. உங்கள் சுயவிவரத்தை உருவாக்கவும்",
-            step2Title: "2. சோதனைகளைக் கண்டறியவும்",
-            step3Title: "3. சேமி & இணைக்கவும்",
-            findTrialTitle: "உங்கள் சோதனையைக் கண்டறியவும்",
-            filterCond: "நிலை மூலம் வடிகட்டவும்",
-            filterLoc: "இருப்பிடம் மூலம் வடிகட்டவும்",
-            filterBtn: "வடிகட்டி",
-            editBtn: "திருந்த",
-            navHome: "முகப்பு",
-            navFeatures: "அம்சங்கள்",
-            navFind: "சோதனையைத் தேடுங்கள்",
-            navSaved: "சேமிக்கப்பட்டது"
-        }
-    };
-
-    const updateContent = (lang) => {
-        const t = translations[lang];
-        
-        // Helper to safely set text if element exists
-        const setText = (selector, text) => {
-            const el = document.querySelector(selector);
-            if (el) el.innerText = text;
-        };
-
-        // Static Content
-        setText('#home h1', t.heroTitle);
-        setText('#home p', t.heroText);
-        // Preserve icon in button
-        const heroBtn = document.querySelector('#home .btn');
-        if(heroBtn) heroBtn.innerHTML = `<i class="fas fa-search"></i> ${t.heroBtn}`;
-        
-        setText('#features .section-title', t.featuresTitle);
-        
-        // Features Cards (Accessing by index)
-        const featureCards = document.querySelectorAll('.feature-card');
-        if(featureCards.length >= 3) {
-            featureCards[0].querySelector('h3').innerText = t.feat1Title;
-            featureCards[0].querySelector('p').innerText = t.feat1Desc;
-            featureCards[1].querySelector('h3').innerText = t.feat2Title;
-            featureCards[1].querySelector('p').innerText = t.feat2Desc;
-            featureCards[2].querySelector('h3').innerText = t.feat3Title;
-            featureCards[2].querySelector('p').innerText = t.feat3Desc;
-        }
-
-        setText('#how-it-works .section-title', t.howWorksTitle);
-        const steps = document.querySelectorAll('.how-it-works-step');
-        if(steps.length >= 3) {
-            steps[0].querySelector('h3').innerText = t.step1Title;
-            steps[1].querySelector('h3').innerText = t.step2Title;
-            steps[2].querySelector('h3').innerText = t.step3Title;
-        }
-
-        setText('#app-interface .section-title', t.findTrialTitle);
-        setText('label[for="condition"]', t.filterCond);
-        setText('label[for="location"]', t.filterLoc);
-        
-        const filterBtn = document.querySelector('#filter-form .btn-primary');
-        if(filterBtn) filterBtn.innerHTML = `<i class="fas fa-filter"></i> ${t.filterBtn}`;
-
-        const editBtn = document.querySelector('#edit-profile-card-btn');
-        if(editBtn) editBtn.innerHTML = `<i class="fas fa-edit"></i> ${t.editBtn}`;
-
-        // Nav Links (Dynamic)
-        const navLinks = document.querySelectorAll('#nav-links a');
-        navLinks.forEach(link => {
-            const href = link.getAttribute('href');
-            if(href === '#home') link.innerText = t.navHome;
-            if(href === '#features') link.innerText = t.navFeatures;
-            if(href === '#app-interface') link.innerText = t.navFind;
-            if(href === '#favorites-section') link.innerText = t.navSaved;
-        });
-    };
-
-    // Event Listener for Language Change
+  // --- MULTILINGUAL SUPPORT (DYNAMIC HEADER POSITION) ---
     const langSelector = document.getElementById('language-selector');
-    if (langSelector) {
-        langSelector.addEventListener('change', (e) => {
-            updateContent(e.target.value);
-            localStorage.setItem('appLang', e.target.value);
-        });
+    const headerElement = document.querySelector('.header');
 
-        // Initialize Language on Load
-        const savedLang = localStorage.getItem('appLang') || 'en';
-        langSelector.value = savedLang;
-        // Delay slightly to ensure dynamic elements are rendered
-        setTimeout(() => updateContent(savedLang), 100); 
+    // Helper: Read a specific cookie safely
+    function getGoogleCookie() {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; googtrans=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
+
+    // Helper: Move Header Based on Language
+    function adjustHeaderPosition(langCode) {
+        if (!headerElement) return;
+        
+        if (langCode === 'en') {
+            // English: Normal clean look
+            headerElement.style.top = '20px';
+        } else {
+            // Other Languages: Move down to make room for Google Bar
+            headerElement.style.top = '60px';
+        }
+    }
+
+    if (langSelector) {
+        // 1. SET DROPDOWN & POSITION ON LOAD
+        let currentLang = 'en'; // Default
+        const currentCookie = getGoogleCookie();
+        
+        if (currentCookie) {
+            const parts = currentCookie.split('/');
+            // If cookie is "/en/bn", parts[2] is "bn"
+            if (parts.length >= 3) {
+                currentLang = parts[2]; 
+            }
+        }
+        
+        langSelector.value = currentLang;
+        
+        // Execute the position check immediately on load
+        adjustHeaderPosition(currentLang);
+
+        // 2. HANDLE CHANGE (Write Cookie & Reload)
+        langSelector.addEventListener('change', function() {
+            const selectedLang = this.value;
+            
+            // Adjust position immediately for visual feedback before reload
+            adjustHeaderPosition(selectedLang);
+
+            // Cookie format: /source_lang/target_lang
+            const cookieValue = `/en/${selectedLang}`; 
+
+            // Clear old cookies
+            document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + window.location.hostname;
+
+            // Set new cookie
+            document.cookie = `googtrans=${cookieValue}; path=/`;
+
+            // Reload page
+            window.location.reload();
+        });
     }
     // --- MULTILINGUAL SUPPORT END ---
        let allTrials = [], favorites = [], favoriteDetails = {}, toCompare = [], currentUser = null, userProfile = null, chartInstance = null, allForumQuestions = [];
@@ -597,7 +486,7 @@ auth.onAuthStateChanged(async user => {
                 <li><a href="#features">Features</a></li>
                 <li><a href="#app-interface">Find Trials</a></li>
                 <li><a href="#forum-section">Community</a></li> 
-                <li><a href="#favorites-section">My Saved</a></li>
+                <li><a href="#favorites-section">My Saved Trials</a></li>
             `;
             
             // --- REMOVED LINE: document.getElementById('favorites-section').classList.remove('d-none'); ---
