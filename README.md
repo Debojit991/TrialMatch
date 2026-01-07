@@ -7,7 +7,7 @@
 [![Firebase](https://img.shields.io/badge/firebase-%23039BE5.svg?style=flat&logo=firebase&logoColor=white)](https://firebase.google.com/)
 [![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=flat&logo=javascript&logoColor=%23F7DF1E)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 
-<a href="[https://trialmatch-plus.netlify.app/]">
+<a href="https://trialmatch-plus.netlify.app/">
   <img src="https://img.shields.io/badge/View_Live_Demo-3b82f6?style=for-the-badge&logo=google-chrome&logoColor=white" alt="View Live Demo" />
 </a>
 
