@@ -37,104 +37,268 @@ document.addEventListener('click', (e) => {
 
 // prevent clicks inside widget from closing it
 chatbotWidget.addEventListener('click', (e) => e.stopPropagation());
-// --- START: Add this new code for Chatbot functionality ---
+// --- REPLACE THE ENTIRE CHATBOT SECTION WITH THIS VOICE-ENABLED VERSION ---
 
 const chatbotMessages = document.getElementById('chatbot-messages');
 const chatbotSendBtn = document.getElementById('chatbot-send');
+const chatbotMicBtn = document.getElementById('chatbot-mic'); // New Mic Button
 
-// Function to add a message to the chat window
+
+// 1. Multilingual Data
+const chatbotData = {
+    en: {
+        greeting: "Hello! How can I help you find a trial today?",
+        definition: "A clinical trial studies new medical treatments in people to see if they are safe and effective.",
+        find: "Use the filters on the main page. If you complete your profile, we will match you automatically.",
+        phases: "Phases:\n- I: Safety (small group).\n- II: Effectiveness.\n- III: Comparison (large group).",
+        thanks: "You're welcome! Stay healthy.",
+        unknown: "I didn't understand. Ask about 'clinical trials', 'how to find', or 'phases'."
+    },
+    bn: {
+        greeting: "নমস্কার! আমি আপনাকে কীভাবে সাহায্য করতে পারি?",
+        definition: "ক্লিনিকাল ট্রায়াল হল মানুষের উপর নতুন চিকিৎসার গবেষণা যা এর নিরাপত্তা ও কার্যকারিতা যাচাই করে।",
+        find: "আপনি মূল পেজে ফিল্টার ব্যবহার করুন। প্রোফাইল সম্পূর্ণ করলে আমরা আপনার জন্য ট্রায়াল খুঁজে দেব।",
+        phases: "ধাপ:\n- ১: নিরাপত্তা (ছোট দল)।\n- ২: কার্যকারিতা।\n- ৩: তুলনা (বড় দল)।",
+        thanks: "আপনাকে স্বাগতম! সুস্থ থাকুন।",
+        unknown: "বুঝতে পারিনি। 'ক্লিনিকাল ট্রায়াল কি' বা 'কিভাবে খুঁজব' জিজ্ঞাসা করুন।"
+    },
+    mr: {
+        greeting: "नमस्कार! मी तुम्हाला कशी मदत करू?",
+        definition: "क्लिनिकल ट्रायल म्हणजे नवीन उपचारांचा लोकांवर अभ्यास करणे, जेणेकरून ते सुरक्षित आहेत का हे समजेल.",
+        find: "मुख्य पृष्ठावरील फिल्टर वापरा. प्रोफाइल पूर्ण केल्यास आम्ही तुमच्यासाठी चाचण्या शोधू.",
+        phases: "टप्पे:\n- १: सुरक्षा (लहान गट).\n- २: परिणामकारकता.\n- ३: तुलना (मोठा गट).",
+        thanks: "स्वागत आहे! निरोगी राहा.",
+        unknown: "समजले नाही. कृपया 'ट्रायल काय आहे' किंवा 'कसे शोधायचे' याबद्दल विचारा."
+    },
+    ta: {
+        greeting: "வணக்கம்! நான் உங்களுக்கு எப்படி உதவ முடியும்?",
+        definition: "மருத்துவ பரிசோதனை என்பது புதிய சிகிச்சைகள் பாதுகாப்பானதா என்பதை அறிய மக்களிடம் நடத்தப்படும் ஆய்வு.",
+        find: "முக்கிய பக்கத்தில் வடிப்பான்களைப் பயன்படுத்தவும். சுயவிவரத்தை முடித்தால், உங்களுக்கான சோதனைகளை நாங்கள் காண்பிப்போம்.",
+        phases: "நிலைகள்:\n- 1: பாதுகாப்பு.\n- 2: செயல்திறன்.\n- 3: ஒப்பீடு.",
+        thanks: "நல்வரவு! ஆரோக்கியமாக இருங்கள்.",
+        unknown: "புரியவில்லை. 'சோதனை என்றால் என்ன' அல்லது 'எப்படி கண்டுபிடிப்பது' என்று கேட்கவும்."
+    }
+};
+
+// 2. Identify Intent (Smart "Context" Matching)
+const identifyIntent = (input) => {
+    input = input.toLowerCase();
+    
+    // --- DEBUGGING: Uncomment the next line to see exactly what the bot "hears" in the console ---
+    // console.log("Bot heard:", input);
+
+    // 1. PHASES / STAGES (Check this First!)
+    // Logic: Look for "Phase" words OR if the user mentions "Trial" + a number (1, 2, 3)
+    const mentionsPhaseWord = input.match(/phase|fej|face|page|stage|step|level|ধাপ|ফেজ|পর্যায়|फेज|टप्पा|स्तर|கட்டம்|நிலை/);
+    const mentionsNumber = input.match(/1|2|3|one|two|three|i|ii|iii|১|২|৩|एक|दोन|तीन/);
+    
+    if (mentionsPhaseWord || (input.includes('trial') && mentionsNumber)) {
+        return 'phases';
+    }
+
+    // 2. FIND / SEARCH
+    if (input.match(/find|search|look|get|where|খুঁজব|সন্ধান|পাব|কোথায়|কিভাবে|शोध|कुठे|मिळवा|தேடு|எங்கே|கண்டுபிடி/)) return 'find';
+
+    // 3. GREETINGS
+    if (input.match(/hello|hi|hey|namaskar|vanakkam|pranam|হ্যালো|নমস্কার|ওহে|हाय|नमस्ते|வணக்கம்/)) return 'greeting';
+
+    // 4. THANKS
+    if (input.match(/thank|dhanyavad|nandri|ধন্যবাদ|आभार|நன்றி/)) return 'thanks';
+
+    // 5. DEFINITION (Check this Last)
+    // Logic: Look for "Clinical", "Definition", "Mean", "What is", or just "Trial"
+    if (input.match(/clinical|trial|what|mean|defin|ট্রায়াল|কি|কাকে বলে|ट्रायल|काय आहे|म्हणजे|சோதனை|என்றால் என்ன|விளக்கம்/)) return 'definition';
+
+    return 'unknown';
+};
+
+// 3. VOICE CONFIGURATION
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const synthesis = window.speechSynthesis;
+let recognition = null;
+
+// Map Dropdown Values (en, bn) to Speech API Codes (en-US, bn-IN)
+const langMap = {
+    'en': 'en-US',
+    'bn': 'bn-IN',
+    'mr': 'mr-IN',
+    'ta': 'ta-IN'
+};
+
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false; // Stop after one sentence
+    recognition.interimResults = false;
+}
+
+// 4. Speak Function (Text-to-Speech)
+const speakResponse = (text, langCode) => {
+    if (!synthesis) return;
+    synthesis.cancel(); // Stop any current speech
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = langCode;
+    // Optional: Adjust speed/pitch if needed
+    utterance.rate = 0.9; 
+    synthesis.speak(utterance);
+};
+
+// 5. Add Message to Chat UI
 const addChatMessage = (message, sender) => {
     const messageEl = document.createElement('div');
     messageEl.classList.add('chat-message', sender);
-    
-    // Convert newlines to <br> for proper display
     messageEl.innerHTML = message.replace(/\n/g, '<br>');
-
     chatbotMessages.appendChild(messageEl);
-    chatbotMessages.scrollTop = chatbotMessages.scrollHeight; // Auto-scroll to the bottom
+    chatbotMessages.scrollTop = chatbotMessages.scrollHeight; 
 };
 
-// Simple logic to generate a bot response based on keywords
-const getBotResponse = (userInput) => {
-    const input = userInput.toLowerCase();
-
-    if (input.includes("hello") || input.includes("hi")) {
-        return "Hello there! How can I assist you with clinical trials today?";
-    }
-    if (input.includes("clinical trial") || input.includes("what is a trial")) {
-        return "A clinical trial is a research study involving human volunteers that aims to evaluate a medical, surgical, or behavioral intervention. It's the primary way researchers find out if a new treatment is safe and effective in people.";
-    }
-    if (input.includes("find a trial") || input.includes("how to")) {
-        return "You can find trials by using the filter form on the main page. If you are logged in as a patient and have completed your profile, we will automatically show you trials you might be eligible for.";
-    }
-    if (input.includes("phase") || input.includes("phase ii")) {
-        return "Clinical trials are conducted in phases:\n- Phase I: Tests safety and dosage in a small group.\n- Phase II: Tests effectiveness and side effects in a larger group.\n- Phase III: Confirms effectiveness, monitors side effects, and compares it to standard treatments in an even larger group.";
-    }
-    if (input.includes("thank")) {
-        return "You're welcome! Is there anything else I can help you with?";
-    }
-
-    return "I'm sorry, I'm not sure how to answer that. You can try asking about 'what is a clinical trial?', 'how to find a trial?', or trial 'phases'.";
-};
-
-// Handles sending a message
-const handleSendMessage = () => {
+// 6. Main Handler
+const handleSendMessage = (triggeredByVoice = false) => {
     const userInput = chatbotInput.value.trim();
     if (userInput === "") return;
 
-    // 1. Display user's message
+    // A. Add User Message
     addChatMessage(userInput, 'user');
     chatbotInput.value = "";
 
-    // 2. Get and display bot's response after a short delay
+    // B. Get Current Language Settings
+    const langSelect = document.getElementById('language-selector');
+    const currentLangKey = langSelect ? langSelect.value : 'en';
+    const speechLangCode = langMap[currentLangKey] || 'en-US';
+
+    // C. Get Bot Response
     setTimeout(() => {
-        const botResponse = getBotResponse(userInput);
+        const intent = identifyIntent(userInput);
+        const responseSet = chatbotData[currentLangKey] || chatbotData['en'];
+        const botResponse = responseSet[intent];
+
         addChatMessage(botResponse, 'bot');
+
+        // D. Speak the response ONLY if input was voice
+        if (triggeredByVoice) {
+            speakResponse(botResponse, speechLangCode);
+        }
     }, 500);
 };
 
-// Event Listeners for sending
-chatbotSendBtn.addEventListener('click', handleSendMessage);
+// 7. Event Listeners
+chatbotSendBtn.addEventListener('click', () => handleSendMessage(false));
 chatbotInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
-        handleSendMessage();
+        handleSendMessage(false);
     }
 });
 
-// --- END: New Chatbot code ---
+// 8. Microphone Button Logic
+if (chatbotMicBtn && recognition) {
+    chatbotMicBtn.addEventListener('click', () => {
+        // Get selected language for listening
+        const langSelect = document.getElementById('language-selector');
+        const currentCode = langMap[langSelect ? langSelect.value : 'en'];
+        
+        recognition.lang = currentCode;
+        recognition.start();
+        
+        // Visual feedback (change icon color)
+        chatbotMicBtn.style.color = "red";
+    });
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        chatbotInput.value = transcript;
+        chatbotMicBtn.style.color = ""; // Reset color
+        handleSendMessage(true); // Trigger send with Voice Flag = true
+    };
+
+    recognition.onerror = (event) => {
+        console.error("Speech Error:", event.error);
+        chatbotMicBtn.style.color = ""; // Reset color
+        alert("Microphone error. Please allow permissions.");
+    };
+    
+    recognition.onend = () => {
+        chatbotMicBtn.style.color = "";
+    };
+} else if (chatbotMicBtn) {
+    chatbotMicBtn.style.display = 'none'; // Hide if browser doesn't support speech
+}
+
         // --- 3. Nav Link Active State ---
-    const sections = document.querySelectorAll('section[id]');
+    // --- 3. Nav Link Logic (FIXED for Single Page Nav) ---
     const navLinks = document.querySelectorAll('.nav-links a');
     
-    // Only run if there are nav links to observe
-    if (navLinks.length > 0) {
-        const navObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const id = entry.target.getAttribute('id');
-                    
-                    navLinks.forEach(link => {
-                        link.classList.remove('active');
-                        // Check if the link's href matches the section's id
-                        if (link.getAttribute('href') === `#${id}`) {
-                            link.classList.add('active');
-                        }
-                    });
-                }
-            });
-        }, { 
-            rootMargin: '-50% 0px -50% 0px' // Triggers when section is in the middle 50% of the viewport
-        }); 
+    // Function to return to main view
+    const returnToMainView = () => {
+        document.getElementById('trial-details-view').classList.add('d-none');
+        document.getElementById('patient-view').classList.remove('d-none');
+        document.getElementById('doctor-dashboard').classList.add('d-none');
+    };
+
+   // --- 3. REVISED Nav Link Logic (Separate Tabs Fix) ---
+    document.getElementById('nav-links').addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (!link) return;
         
-        sections.forEach(section => {
-            // Only observe sections that have a corresponding nav link
-            const correspondingLink = document.querySelector(`.nav-links a[href="#${section.id}"]`);
-            if (correspondingLink) {
-                navObserver.observe(section);
+        const targetId = link.getAttribute('href').substring(1);
+
+        // A. Handle Doctor Logic (Dashboard vs Forum)
+        if (userProfile?.role === 'doctor') {
+            document.getElementById('trial-details-view').classList.add('d-none');
+            document.getElementById('forum-details-view').classList.add('d-none');
+
+            if (targetId === 'forum-section') {
+                // Show Forum Only
+                document.getElementById('doctor-dashboard').classList.add('d-none');
+                document.getElementById('patient-view').classList.remove('d-none');
+                // Hide all patient sections, show only forum
+                document.querySelectorAll('#patient-view > section').forEach(el => el.classList.add('d-none'));
+                document.getElementById('forum-section').classList.remove('d-none');
+            } else {
+                // Show Dashboard
+                document.getElementById('patient-view').classList.add('d-none');
+                document.getElementById('doctor-dashboard').classList.remove('d-none');
+                const el = document.getElementById(targetId);
+                if(el) el.scrollIntoView({ behavior: 'smooth' });
+            }
+            return; 
+        }
+
+        // B. Handle Patient Logic (Landing Page vs Tabs)
+        // 1. Ensure basic views are correct
+        document.getElementById('doctor-dashboard').classList.add('d-none');
+        document.getElementById('patient-view').classList.remove('d-none');
+        document.getElementById('trial-details-view').classList.add('d-none');
+        document.getElementById('forum-details-view').classList.add('d-none');
+
+        // 2. Identify if we are clicking a "Tab"
+        const isTab = ['favorites-section', 'forum-section'].includes(targetId);
+        const patientSections = document.querySelectorAll('#patient-view > section');
+
+        // 3. Toggle Visibility
+        patientSections.forEach(section => {
+            if (isTab) {
+                // TAB MODE: If clicking "My Saved" or "Community", hide everything else
+                if (section.id === targetId) {
+                    section.classList.remove('d-none');
+                } else {
+                    section.classList.add('d-none');
+                }
+            } else {
+                // LANDING MODE: If clicking "Home" or "Find Trials", show landing content, hide Tabs
+                if (section.id === 'favorites-section' || section.id === 'forum-section') {
+                    section.classList.add('d-none');
+                } else {
+                    section.classList.remove('d-none');
+                }
             }
         });
-    }
+
+        // 4. Smooth Scroll
+        setTimeout(() => {
+            const target = document.getElementById(targetId);
+            if(target) target.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
+    });
         // --- 3. Glass Card "Shine" Effect Listener ---
     document.body.addEventListener('mousemove', (e) => {
         const cards = document.querySelectorAll('.glass-card');
@@ -196,7 +360,185 @@ chatbotInput.addEventListener('keydown', (e) => {
     }
     return age > 0 ? age : 0;
 };
-        let allTrials = [], favorites = [], favoriteDetails = {}, toCompare = [], currentUser = null, userProfile = null, chartInstance = null;
+// --- MULTILINGUAL SUPPORT START ---
+    const translations = {
+        en: {
+            heroTitle: "From confusion to clarity—your clinical trial companion.",
+            heroText: "TrialMatch+ uses AI to simplify complex medical jargon and connect you with clinical trials that fit your profile.",
+            heroBtn: "Find a Trial Now",
+            featuresTitle: "Why Choose TrialMatch+?",
+            feat1Title: "AI-Powered Explanations",
+            feat1Desc: "Our smart AI translates complicated trial descriptions into simple, easy-to-understand language.",
+            feat2Title: "Personalized Matching",
+            feat2Desc: "Complete your profile to get a curated list of trials that match your age, condition, and location.",
+            feat3Title: "Doctor-Patient Collaboration",
+            feat3Desc: "A dedicated portal for doctors to recommend trials and track patient interest securely.",
+            howWorksTitle: "Simple Steps to a Healthier Future",
+            step1Title: "1. Create Your Profile",
+            step2Title: "2. Discover Trials",
+            step3Title: "3. Save & Connect",
+            findTrialTitle: "Find Your Trial",
+            filterCond: "Filter by Condition",
+            filterLoc: "Filter by Location",
+            filterBtn: "Filter",
+            editBtn: "Edit",
+            navHome: "Home",
+            navFeatures: "Features",
+            navFind: "Find Trials",
+            navSaved: "My Saved"
+        },
+        bn: {
+            heroTitle: "বিভ্রান্তি থেকে স্বচ্ছতার দিকে—আপনার ক্লিনিকাল ট্রায়াল সঙ্গী।",
+            heroText: "TrialMatch+ জটিল চিকিৎসা পরিভাষা সহজ করতে এবং আপনার প্রোফাইলের সাথে মানানসই ক্লিনিকাল ট্রায়ালের সাথে আপনাকে সংযুক্ত করতে AI ব্যবহার করে।",
+            heroBtn: "এখনই একটি ট্রায়াল খুঁজুন",
+            featuresTitle: "কেন TrialMatch+ বেছে নেবেন?",
+            feat1Title: "AI-চালিত ব্যাখ্যা",
+            feat1Desc: "আমাদের স্মার্ট AI জটিল ট্রায়াল বিবরণ সহজ, বোধগম্য ভাষায় অনুবাদ করে।",
+            feat2Title: "ব্যক্তিগতকৃত ম্যাচিং",
+            feat2Desc: "আপনার বয়স, অবস্থা এবং অবস্থানের সাথে মেলে এমন ট্রায়ালগুলির একটি তালিকা পেতে আপনার প্রোফাইল সম্পূর্ণ করুন।",
+            feat3Title: "ডাক্তার-রোগী সহযোগিতা",
+            feat3Desc: "ডাক্তারদের জন্য ট্রায়াল সুপারিশ এবং রোগীর আগ্রহ নিরাপদে ট্র্যাক করার একটি পোর্টাল।",
+            howWorksTitle: "সুস্থ ভবিষ্যতের জন্য সহজ পদক্ষেপ",
+            step1Title: "১. প্রোফাইল তৈরি করুন",
+            step2Title: "২. ট্রায়াল খুঁজুন",
+            step3Title: "৩. সেভ করুন এবং সংযুক্ত হন",
+            findTrialTitle: "আপনার ট্রায়াল খুঁজুন",
+            filterCond: "অবস্থা অনুযায়ী ফিল্টার",
+            filterLoc: "অবস্থান অনুযায়ী ফিল্টার",
+            filterBtn: "ফিল্টার",
+            editBtn: "সম্পাদনা",
+            navHome: "হোম",
+            navFeatures: "বৈশিষ্ট্য",
+            navFind: "ট্রায়াল খুঁজুন",
+            navSaved: "সংরক্ষিত"
+        },
+        mr: {
+            heroTitle: "गोंधळाकडून स्पष्टतेकडे—तुमचा क्लिनिकल ट्रायल साथी.",
+            heroText: "TrialMatch+ क्लिष्ट वैद्यकीय संज्ञा सोपी करण्यासाठी आणि तुम्हाला योग्य असलेल्या क्लिनिकल ट्रायल्सशी जोडण्यासाठी AI वापरते.",
+            heroBtn: "आता चाचणी शोधा",
+            featuresTitle: "TrialMatch+ का निवडावे?",
+            feat1Title: "AI-आधारित स्पष्टीकरण",
+            feat1Desc: "आमचे स्मार्ट AI क्लिष्ट चाचणी वर्णन सोप्या, समजण्यास सोप्या भाषेत अनुवादित करते.",
+            feat2Title: "वैयक्तिकृत जुळवणी",
+            feat2Desc: "तुमचे वय, स्थिती आणि स्थानाशी जुळणाऱ्या चाचण्यांची यादी मिळवण्यासाठी तुमचे प्रोफाइल पूर्ण करा.",
+            feat3Title: "डॉक्टर-रुग्ण सहयोग",
+            feat3Desc: "डॉक्टरांसाठी चाचण्या सुचवण्यासाठी आणि रुग्णांच्या स्वारस्याचा सुरक्षितपणे मागोवा घेण्यासाठी एक समर्पित पोर्टल.",
+            howWorksTitle: "निरोगी भविष्यासाठी सोप्या पायऱ्या",
+            step1Title: "१. तुमचे प्रोफाइल तयार करा",
+            step2Title: "२. चाचण्या शोधा",
+            step3Title: "३. सेव्ह करा आणि कनेक्ट करा",
+            findTrialTitle: "तुमची चाचणी शोधा",
+            filterCond: "स्थितीनुसार फिल्टर करा",
+            filterLoc: "स्थानानुसार फिल्टर करा",
+            filterBtn: "फिल्टर",
+            editBtn: "संपादित करा",
+            navHome: "होम",
+            navFeatures: "वैशिष्ट्ये",
+            navFind: "चाचणी शोधा",
+            navSaved: "जतन केलेले"
+        },
+        ta: {
+            heroTitle: "குழப்பத்திலிருந்து தெளிவுக்கு - உங்கள் மருத்துவ பரிசோதனை துணை.",
+            heroText: "TrialMatch+ சிக்கலான மருத்துவச் சொற்களை எளிதாக்கவும், உங்கள் சுயவிவரத்திற்குப் பொருத்தமான மருத்துவ பரிசோதனைகளுடன் உங்களை இணைக்கவும் AI ஐப் பயன்படுத்துகிறது.",
+            heroBtn: "இப்போதே சோதனையைக் கண்டறியவும்",
+            featuresTitle: "TrialMatch+ ஐ ஏன் தேர்வு செய்ய வேண்டும்?",
+            feat1Title: "AI-இயங்கும் விளக்கங்கள்",
+            feat1Desc: "எங்கள் ஸ்மார்ட் AI சிக்கலான சோதனை விளக்கங்களை எளிய, புரிந்துகொள்ளக்கூடிய மொழியில் மொழிபெயர்க்கிறது.",
+            feat2Title: "தனிப்பயனாக்கப்பட்ட பொருத்தம்",
+            feat2Desc: "உங்கள் வயது, நிலை மற்றும் இருப்பிடத்துடன் பொருந்தக்கூடிய சோதனைகளின் பட்டியலைப் பெற உங்கள் சுயவிவரத்தை முடிக்கவும்.",
+            feat3Title: "மருத்துவர்-நோயாளி ஒத்துழைப்பு",
+            feat3Desc: "மருத்துவர்கள் சோதனைகளைப் பரிந்துரைக்கவும் நோயாளியின் ஆர்வத்தைப் பாதுகாப்பாகக் கண்காணிக்கவும் ஒரு பிரத்யேக தளம்.",
+            howWorksTitle: "ஆரோக்கியமான எதிர்காலத்திற்கான எளிய படிகள்",
+            step1Title: "1. உங்கள் சுயவிவரத்தை உருவாக்கவும்",
+            step2Title: "2. சோதனைகளைக் கண்டறியவும்",
+            step3Title: "3. சேமி & இணைக்கவும்",
+            findTrialTitle: "உங்கள் சோதனையைக் கண்டறியவும்",
+            filterCond: "நிலை மூலம் வடிகட்டவும்",
+            filterLoc: "இருப்பிடம் மூலம் வடிகட்டவும்",
+            filterBtn: "வடிகட்டி",
+            editBtn: "திருந்த",
+            navHome: "முகப்பு",
+            navFeatures: "அம்சங்கள்",
+            navFind: "சோதனையைத் தேடுங்கள்",
+            navSaved: "சேமிக்கப்பட்டது"
+        }
+    };
+
+    const updateContent = (lang) => {
+        const t = translations[lang];
+        
+        // Helper to safely set text if element exists
+        const setText = (selector, text) => {
+            const el = document.querySelector(selector);
+            if (el) el.innerText = text;
+        };
+
+        // Static Content
+        setText('#home h1', t.heroTitle);
+        setText('#home p', t.heroText);
+        // Preserve icon in button
+        const heroBtn = document.querySelector('#home .btn');
+        if(heroBtn) heroBtn.innerHTML = `<i class="fas fa-search"></i> ${t.heroBtn}`;
+        
+        setText('#features .section-title', t.featuresTitle);
+        
+        // Features Cards (Accessing by index)
+        const featureCards = document.querySelectorAll('.feature-card');
+        if(featureCards.length >= 3) {
+            featureCards[0].querySelector('h3').innerText = t.feat1Title;
+            featureCards[0].querySelector('p').innerText = t.feat1Desc;
+            featureCards[1].querySelector('h3').innerText = t.feat2Title;
+            featureCards[1].querySelector('p').innerText = t.feat2Desc;
+            featureCards[2].querySelector('h3').innerText = t.feat3Title;
+            featureCards[2].querySelector('p').innerText = t.feat3Desc;
+        }
+
+        setText('#how-it-works .section-title', t.howWorksTitle);
+        const steps = document.querySelectorAll('.how-it-works-step');
+        if(steps.length >= 3) {
+            steps[0].querySelector('h3').innerText = t.step1Title;
+            steps[1].querySelector('h3').innerText = t.step2Title;
+            steps[2].querySelector('h3').innerText = t.step3Title;
+        }
+
+        setText('#app-interface .section-title', t.findTrialTitle);
+        setText('label[for="condition"]', t.filterCond);
+        setText('label[for="location"]', t.filterLoc);
+        
+        const filterBtn = document.querySelector('#filter-form .btn-primary');
+        if(filterBtn) filterBtn.innerHTML = `<i class="fas fa-filter"></i> ${t.filterBtn}`;
+
+        const editBtn = document.querySelector('#edit-profile-card-btn');
+        if(editBtn) editBtn.innerHTML = `<i class="fas fa-edit"></i> ${t.editBtn}`;
+
+        // Nav Links (Dynamic)
+        const navLinks = document.querySelectorAll('#nav-links a');
+        navLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            if(href === '#home') link.innerText = t.navHome;
+            if(href === '#features') link.innerText = t.navFeatures;
+            if(href === '#app-interface') link.innerText = t.navFind;
+            if(href === '#favorites-section') link.innerText = t.navSaved;
+        });
+    };
+
+    // Event Listener for Language Change
+    const langSelector = document.getElementById('language-selector');
+    if (langSelector) {
+        langSelector.addEventListener('change', (e) => {
+            updateContent(e.target.value);
+            localStorage.setItem('appLang', e.target.value);
+        });
+
+        // Initialize Language on Load
+        const savedLang = localStorage.getItem('appLang') || 'en';
+        langSelector.value = savedLang;
+        // Delay slightly to ensure dynamic elements are rendered
+        setTimeout(() => updateContent(savedLang), 100); 
+    }
+    // --- MULTILINGUAL SUPPORT END ---
+       let allTrials = [], favorites = [], favoriteDetails = {}, toCompare = [], currentUser = null, userProfile = null, chartInstance = null, allForumQuestions = [];
+        let tempTrialIdToSave = null; // <--- ADD THIS
         const trialsContainer = document.getElementById('trials-container');
         const filterForm = document.getElementById('filter-form');
         const conditionInput = document.getElementById('condition');
@@ -242,29 +584,36 @@ auth.onAuthStateChanged(async user => {
     }
 });
 
-        const setupPatientView = () => {
+      const setupPatientView = () => {
             document.getElementById('eligibility-legend').classList.remove('d-none');
           
             document.getElementById('patient-view').classList.remove('d-none');
             document.getElementById('doctor-dashboard').classList.add('d-none');
+            document.getElementById('medical-history-section').classList.remove('d-none');
+            renderMedicalDocs();
+            
             navLinksContainer.innerHTML = `
                 <li><a href="#home">Home</a></li>
                 <li><a href="#features">Features</a></li>
                 <li><a href="#app-interface">Find Trials</a></li>
+                <li><a href="#forum-section">Community</a></li> 
                 <li><a href="#favorites-section">My Saved</a></li>
             `;
-            document.getElementById('favorites-section').classList.remove('d-none');
+            
+            // --- REMOVED LINE: document.getElementById('favorites-section').classList.remove('d-none'); ---
+            // This ensures it stays hidden until you click the tab
+            
             updateAuthUI(true, 'patient');
             renderUserProfileCard();
             listenToFavorites();
+            if(typeof updateContent === "function") updateContent(document.getElementById('language-selector').value);
         };
-
       const setupDoctorView = () => {
             document.getElementById('patient-view').classList.add('d-none');
             document.getElementById('doctor-dashboard').classList.remove('d-none');
             navLinksContainer.innerHTML = `
                 <li><a href="#add-trial-section">Add Trial</a></li>
-            `;
+                <li><a href="#forum-section">Community</a></li> `;
             document.getElementById('new-trial-location').value = userProfile?.location || "";
             updateAuthUI(true, 'doctor');
             loadManagedTrials();
@@ -295,6 +644,7 @@ auth.onAuthStateChanged(async user => {
             toCompare = [];
             renderFavorites();
             applyFilters();
+            if(typeof updateContent === "function") updateContent(document.getElementById('language-selector').value);
         };
 
         const updateAuthUI = (isLoggedIn, role = 'patient') => {
@@ -391,65 +741,65 @@ auth.onAuthStateChanged(async user => {
         };
 
         // --- DATA & RENDERING ---
-      const renderTrials = (trialsToRender) => {
-            trialsContainer.innerHTML = '';
-            document.getElementById('no-results').classList.toggle('d-none', trialsToRender.length > 0);
+      /* --- REPLACEMENT FOR renderTrials --- */
+const renderTrials = (trialsToRender) => {
+    trialsContainer.innerHTML = '';
+    document.getElementById('no-results').classList.toggle('d-none', trialsToRender.length > 0);
 
-            trialsToRender.forEach(trial => {
-                const isFavorite = favorites.includes(trial.id);
-                const isComparing = toCompare.includes(trial.id);
-                const { eligible: isEligible, reason: eligibilityReason } = checkEligibility(trial, userProfile);
-                const card = document.createElement('div');
-                card.className = 'trial-card glass-card';
-                card.dataset.id = trial.id;
-                
-             // --- MODIFIED card.innerHTML block ---
-                card.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <h3 style="margin-right: 10px;">${trial.title}</h3>
-                        ${userProfile?.role === 'patient' ? `<span class="eligibility-indicator ${isEligible ? 'eligible' : 'ineligible'}" title="${eligibilityReason}" style="flex-shrink: 0;"></span>` : ''}
-                    </div>
-                    
-                    <div class="tags-container">
-                        <span class="tag tag-condition">
-                            <i class="fas fa-notes-medical"></i> ${trial.condition}
-                        </span>
-                        <span class="tag tag-location">
-                            <i class="fas fa-map-marker-alt"></i> ${trial.location}
-                        </span>
-                    </div>
-                    
-                    ${trial.hospitalName && trial.hospitalName !== 'N/A' ? `
-                        <div class="info-item"><i class="fas fa-hospital"></i> ${trial.hospitalName}</div>
-                    ` : ''}
-                    
-                    <div class="info-item"><i class="fas fa-calendar-alt"></i> ${trial.duration}</div>
-                    <div class="info-item"><i class="fas fa-wallet"></i> ${trial.compensation}</div>
-                    
-                    ${trial.doctorName && trial.doctorName !== 'N/A' ? `
-                        <div class="info-item" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(156, 163, 175, 0.2);">
-                            <i class="fas fa-user-md"></i> <strong>Dr. ${trial.doctorName}</strong> (${trial.doctorSpecialization || ''})
-                        </div>
-                    ` : ''}
+    trialsToRender.forEach(trial => {
+        const isFavorite = favorites.includes(trial.id);
+        const isComparing = toCompare.includes(trial.id);
+        const { eligible: isEligible, reason: eligibilityReason } = checkEligibility(trial, userProfile);
+        
+        // Create the card element
+        const card = document.createElement('div');
+        card.className = 'trial-card glass-card'; 
+        
+        // Fix: Removed duplicate 'div', fixed layout, added 'View Details' button
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <h3 style="margin-right: 10px;">${trial.title}</h3>
+                ${userProfile?.role === 'patient' ? `<span class="eligibility-indicator ${isEligible ? 'eligible' : 'ineligible'}" title="${eligibilityReason}" style="flex-shrink: 0;"></span>` : ''}
+            </div>
+            
+            <div class="tags-container">
+                <span class="tag tag-condition"><i class="fas fa-notes-medical"></i> ${trial.condition}</span>
+                <span class="tag tag-location"><i class="fas fa-map-marker-alt"></i> ${trial.location}</span>
+            </div>
+            
+            ${trial.hospitalName && trial.hospitalName !== 'N/A' ? `<div class="info-item"><i class="fas fa-hospital"></i> ${trial.hospitalName}</div>` : ''}
+            <div class="info-item"><i class="fas fa-calendar-alt"></i> ${trial.duration}</div>
+            <div class="info-item"><i class="fas fa-wallet"></i> ${trial.compensation}</div>
+            
+            ${trial.doctorName && trial.doctorName !== 'N/A' ? `
+                <div class="info-item" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(156, 163, 175, 0.2);">
+                    <i class="fas fa-user-md"></i> <strong>Dr. ${trial.doctorName}</strong>
+                </div>
+            ` : ''}
 
-                   ${trial.doctorWhatsapp && trial.doctorWhatsapp !== 'N/A' ? `
-                        <div class="info-item">
-                            <i class="fab fa-whatsapp"></i> <a href="https://wa.me/${trial.doctorWhatsapp.replace(/\D/g,'')}?text=${encodeURIComponent(`HI I AM ${userProfile?.name || 'a patient'} FROM TRIALMATCH`)}" target="_blank" style="text-decoration: none; color: inherit;">Contact on WhatsApp</a>
-                        </div>
-                    ` : ''}
-                    ${trial.simpleExplanation ? `<div class="simple-explanation"><i class="fas fa-brain"></i> <strong>AI Summary:</strong> ${trial.simpleExplanation}</div>` : ''}
-                    <div class="actions">
-                        <button class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'} favorite-btn" data-id="${trial.id}">
-                            <i class="fas fa-heart"></i> ${isFavorite ? 'Saved' : 'Save'}
-                        </button>
-                        <button class="btn ${isComparing ? 'btn-primary' : 'btn-secondary'} compare-btn" data-id="${trial.id}">
-                            <i class="fas fa-exchange-alt"></i> ${isComparing ? 'Comparing' : 'Compare'}
-                        </button>
-                    </div>`;
-                trialsContainer.appendChild(card);
-            });
-            updateDynamicChart(trialsToRender);
-        };
+            ${trial.doctorWhatsapp && trial.doctorWhatsapp !== 'N/A' ? `
+                <div class="info-item">
+                    <i class="fab fa-whatsapp"></i> <a href="https://wa.me/${trial.doctorWhatsapp.replace(/\D/g,'')}?text=${encodeURIComponent(`HI I AM ${userProfile?.name || 'a patient'} FROM TRIALMATCH`)}" target="_blank" style="text-decoration: none; color: inherit;">Contact on WhatsApp</a>
+                </div>
+            ` : ''}
+            
+            ${trial.simpleExplanation ? `<div class="simple-explanation"><i class="fas fa-brain"></i> <strong>AI Summary:</strong> ${trial.simpleExplanation}</div>` : ''}
+            
+            <div class="actions">
+                <button class="btn ${isFavorite ? 'btn-primary' : 'btn-secondary'} favorite-btn" data-id="${trial.id}">
+                    <i class="fas fa-heart"></i> ${isFavorite ? 'Saved' : 'Save'}
+                </button>
+                <button class="btn ${isComparing ? 'btn-primary' : 'btn-secondary'} compare-btn" data-id="${trial.id}">
+                    <i class="fas fa-exchange-alt"></i> ${isComparing ? 'Comparing' : 'Compare'}
+                </button>
+                <button class="btn btn-secondary view-details-btn" data-id="${trial.id}">
+                    View Details
+                </button>
+            </div>`;
+        trialsContainer.appendChild(card);
+    });
+    updateDynamicChart(trialsToRender);
+};
         const renderUserProfileCard = () => {
             const card = document.getElementById('patient-profile-card');
             const detailsContainer = document.getElementById('patient-profile-details');
@@ -464,6 +814,91 @@ auth.onAuthStateChanged(async user => {
             `;
             card.classList.remove('d-none');
         };
+        // --- MEDICAL DOCS LOGIC (CLOUDINARY) ---
+const handleFileUpload = async (e) => {
+    // 1. YOUR KEYS HERE
+    const cloudName = "dndzrwnhm"; 
+    const uploadPreset = "ml_default"; 
+
+    const files = e.target.files;
+    if (!files.length) return;
+
+    const progressBar = document.getElementById('upload-progress-bar');
+    const statusText = document.getElementById('upload-status-text');
+    document.getElementById('upload-progress-container').classList.remove('d-none');
+
+    let completed = 0;
+    const total = files.length;
+
+    for (let i = 0; i < total; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', uploadPreset);
+
+        try {
+            statusText.innerText = `Uploading ${i+1}/${total}...`;
+            
+            // Upload to Cloudinary
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+                method: 'POST', body: formData
+            });
+            const data = await res.json();
+            
+            if (!data.secure_url) throw new Error("Upload failed");
+
+            // Save Link to Firestore ONLY (The listener will update the UI)
+            const docData = { url: data.secure_url, name: file.name };
+            await db.collection('users').doc(currentUser.uid).update({
+                medicalDocuments: firebase.firestore.FieldValue.arrayUnion(docData)
+            });
+
+            // --- REMOVED MANUAL PUSH TO PREVENT DUPLICATES ---
+            
+            completed++;
+            progressBar.style.width = `${(completed / total) * 100}%`;
+
+        } catch (err) {
+            console.error(err);
+            alert("Upload failed. Check Cloud Name/Preset.");
+        }
+    }
+
+    setTimeout(() => {
+        document.getElementById('upload-progress-container').classList.add('d-none');
+        progressBar.style.width = '0%';
+        // renderMedicalDocs(); // <-- REMOVED (Listener handles it now)
+    }, 1000);
+};
+const renderMedicalDocs = () => {
+    const gallery = document.getElementById('medical-docs-gallery');
+    gallery.innerHTML = '';
+    
+    if (userProfile?.medicalDocuments?.length > 0) {
+        userProfile.medicalDocuments.forEach(doc => {
+            const div = document.createElement('div');
+            div.className = 'doc-item';
+            div.innerHTML = `
+                <img src="${doc.url}">
+                <div class="doc-zoom-btn" onclick="window.open('${doc.url}', '_blank')">View</div>
+                <button class="doc-delete-btn" onclick="deleteMedicalDoc('${doc.url}')"><i class="fas fa-trash"></i></button>
+            `;
+            gallery.appendChild(div);
+        });
+    } else {
+        gallery.innerHTML = '<p style="color:#888; width:100%;">No documents uploaded.</p>';
+    }
+};
+
+window.deleteMedicalDoc = async (url) => {
+    if(!confirm("Delete this document?")) return;
+    const docObj = userProfile.medicalDocuments.find(d => d.url === url);
+    await db.collection('users').doc(currentUser.uid).update({
+        medicalDocuments: firebase.firestore.FieldValue.arrayRemove(docObj)
+    });
+    userProfile.medicalDocuments = userProfile.medicalDocuments.filter(d => d.url !== url);
+    renderMedicalDocs();
+};
 
         const renderFavorites = () => {
             const favoritesContainer = document.getElementById('favorites-container');
@@ -506,15 +941,20 @@ auth.onAuthStateChanged(async user => {
         }, err => console.error("Error fetching trials:", err));
         // --- NEW HELPER FUNCTION ---
        /* REPLACE with this: */
+/* --- REPLACEMENT FOR checkEligibility --- */
 const checkEligibility = (trial, profile) => {
-    // Default to ineligible if no profile, not a patient, or no date of birth
+    // 1. Safe check: If user is not a patient or has incomplete profile
     if (!profile || profile.role !== 'patient' || !profile.dob) {
         return { eligible: false, reason: 'Complete your profile (including Date of Birth) to check eligibility.' };
     }
 
-    // Calculate age dynamically using our new helper function
-    const userAge = calculateAge(profile.dob);
+    // 2. CRITICAL FIX: Prevent crash if 'age_range' is missing in previous data
+    if (!trial.age_range || !Array.isArray(trial.age_range)) {
+         return { eligible: false, reason: 'Age requirements not specified for this trial.' };
+    }
 
+    // 3. Calculate eligibility
+    const userAge = calculateAge(profile.dob);
     const [minAge, maxAge] = trial.age_range;
 
     if (userAge >= minAge && userAge <= maxAge) {
@@ -523,7 +963,7 @@ const checkEligibility = (trial, profile) => {
         return { eligible: false, reason: `Ineligible: Your age (${userAge}) is outside the required range (${minAge}-${maxAge}).` };
     }
 };
-       const listenToFavorites = () => {
+      const listenToFavorites = () => {
             if (!currentUser) return;
             
             // --- NEW: Listen to the user document directly ---
@@ -535,13 +975,14 @@ const checkEligibility = (trial, profile) => {
                     // Get favorites from the array, default to empty array
                     favorites = userProfile.favorites || []; 
                     
-                    // The rest of the logic remains the same
+                    // Update UI elements automatically
                     renderFavorites();
+                    renderMedicalDocs(); // <--- ADDED THIS LINE (Fixes Duplicates)
+                    
                     if(document.getElementById('trials-container').innerHTML) applyFilters();
                 }
             }, err => console.error("Error listening to user profile:", err));
         };
-        
         // --- CORE LOGIC ---
     const applyFilters = () => {
         let filtered = [...allTrials];
@@ -561,7 +1002,10 @@ const checkEligibility = (trial, profile) => {
         document.body.addEventListener('click', async (e) => {
             const target = e.target;
             const closest = (selector) => target.closest(selector);
-
+if (closest('.view-details-btn')) {
+        const trialId = closest('.view-details-btn').dataset.id;
+        openTrialDetails(trialId);
+    }
             if (closest('#login-signup-btn') || closest('#cta-signup-btn')) authModal.style.display = 'block';
             if (closest('#my-profile-btn') || closest('#edit-profile-card-btn') || closest('#user-profile-icon')) openProfileModal();
             if (closest('#logout-btn')) auth.signOut();
@@ -659,6 +1103,7 @@ else if (closest('.close-btn')) {
             }
 
             // --- NEW: Handle Trial Editing (Populate Form) ---
+            // --- FIX: Handle Trial Editing (Populate Form correctly) ---
             if (closest('.edit-trial-btn')) {
                 const trialId = closest('.edit-trial-btn').dataset.id;
                 const trial = allTrials.find(t => t.id === trialId);
@@ -671,14 +1116,21 @@ else if (closest('.close-btn')) {
                     document.getElementById('new-trial-condition').value = trial.condition;
                     document.getElementById('new-trial-hospital').value = trial.hospitalName;
                     document.getElementById('new-trial-location').value = trial.location;
-                    document.getElementById('new-trial-age-min').value = trial.age_range[0];
-                    document.getElementById('new-trial-age-max').value = trial.age_range[1];
+                    document.getElementById('new-trial-age-min').value = trial.age_range ? trial.age_range[0] : '';
+                    document.getElementById('new-trial-age-max').value = trial.age_range ? trial.age_range[1] : '';
                     document.getElementById('new-trial-duration').value = trial.duration;
                     document.getElementById('new-trial-compensation').value = trial.compensation;
-                    document.getElementById('new-trial-explanation').value = trial.explanation; // Use original explanation
+                    document.getElementById('new-trial-explanation').value = trial.explanation;
 
-                    // Update button text
-                    form.querySelector('button[type="submit"]').textContent = 'Update Trial';
+                    document.getElementById('new-trial-objective').value = trial.objective || '';
+                    document.getElementById('new-trial-eligibility').value = trial.eligibilityCriteria || '';
+                    document.getElementById('new-trial-success').value = trial.successRate || '';
+                    document.getElementById('new-trial-time').value = trial.timeToOutcome || '';
+                    document.getElementById('new-trial-side-effects').value = Array.isArray(trial.sideEffects) ? trial.sideEffects.join(', ') : (trial.sideEffects || '');
+                    
+                    // --- KEY FIX: Target the button OUTSIDE the form using the 'form' attribute ---
+                    const submitBtn = document.querySelector('button[form="add-trial-form"]');
+                    if(submitBtn) submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Trial';
                     
                     // Scroll to form
                     document.getElementById('add-trial-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -838,39 +1290,96 @@ document.getElementById('profile-form').addEventListener('submit', async (e) => 
             
             profileModal.style.display = 'block';
         };
-        const toggleFavorite = (trialId) => {
-            if (!currentUser) return;
-            
-            // Get the user's doc reference
-            const userDocRef = db.collection('users').doc(currentUser.uid);
-            
-            if (favorites.includes(trialId)) {
-                // --- REMOVE from array ---
-                userDocRef.update({
-                    favorites: firebase.firestore.FieldValue.arrayRemove(trialId)
-                });
-                
-                // --- Also remove the (now unused) subcollection doc if it exists ---
-                db.collection('users').doc(currentUser.uid).collection('favorites').doc(trialId).delete().catch(() => {});
-                
-            } else {
-                // --- ADD to array ---
-                const trial = allTrials.find(t => t.id === trialId);
-                userDocRef.update({
-                    favorites: firebase.firestore.FieldValue.arrayUnion(trialId)
-                });
-                
-                // --- STILL write to the subcollection FOR THE DOCTOR'S QUERY ---
-                // This is the key: we write to *both* places.
-                const favoriteRef = db.collection('users').doc(currentUser.uid).collection('favorites').doc(trialId);
-                favoriteRef.set({ 
-                    addedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    trialTitle: trial.title,
-                    doctorId: trial.doctorId || 'N/A'
-                });
-            }
-        };
+       // --- CORRECTED TOGGLE FAVORITE FUNCTION ---
+// --- UPDATED SAVE/FAVORITE LOGIC ---
+// --- UPDATED SAVE/FAVORITE LOGIC ---
+const toggleFavorite = (trialId) => {
+    if (!currentUser) {
+        authModal.style.display = 'block'; 
+        return;
+    }
 
+    // If removing, just remove immediately
+    if (favorites.includes(trialId)) {
+        processFavoriteToggle(trialId, false, []);
+        return;
+    }
+
+    // CHECK DOCUMENTS
+    const docs = userProfile.medicalDocuments || [];
+    tempTrialIdToSave = trialId; // Store ID globally
+
+    if (docs.length === 0) {
+        // SCENARIO 1: No Docs -> Prompt to Upload
+        document.getElementById('no-docs-modal').style.display = 'block';
+    } else {
+        // SCENARIO 2: Has Docs -> Let user select
+        showDocSelectionModal(docs);
+    }
+};
+
+// Helper to render the selection modal
+const showDocSelectionModal = (docs) => {
+    const list = document.getElementById('doc-selection-list');
+    list.innerHTML = '';
+
+    docs.forEach((doc, index) => {
+        const item = document.createElement('div');
+        item.className = 'doc-checkbox-item';
+        // Check all by default
+        item.innerHTML = `
+            <input type="checkbox" id="doc-check-${index}" value="${doc.url}" checked>
+            <label for="doc-check-${index}">${doc.name || 'Untitled Document'}</label>
+        `;
+        list.appendChild(item);
+    });
+
+    document.getElementById('permission-modal').style.display = 'block';
+};
+// --- MISSING FUNCTION: PROCESS FAVORITE TOGGLE ---
+const processFavoriteToggle = (trialId, shareDocs, sharedUrls = []) => {
+    const userDocRef = db.collection('users').doc(currentUser.uid);
+    const trial = allTrials.find(t => t.id === trialId);
+
+    if (favorites.includes(trialId)) {
+        // REMOVE logic (Unsave)
+        userDocRef.update({ favorites: firebase.firestore.FieldValue.arrayRemove(trialId) });
+        db.collection('users').doc(currentUser.uid).collection('favorites').doc(trialId).delete().catch(()=>{});
+        
+        favorites = favorites.filter(id => id !== trialId);
+        renderTrials(allTrials);
+        renderFavorites(); 
+    } else {
+        // ADD logic (Save)
+        userDocRef.update({ favorites: firebase.firestore.FieldValue.arrayUnion(trialId) });
+        
+        // Save to subcollection with SELECTIVE DOCS
+        const favoriteRef = db.collection('users').doc(currentUser.uid).collection('favorites').doc(trialId);
+        
+        favoriteRef.set({ 
+            addedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            trialTitle: trial.title,
+            doctorId: trial.doctorId || 'N/A',
+            shareDocs: shareDocs,       // Boolean (Yes/No)
+            sharedDocUrls: sharedUrls   // Array (List of specific file URLs)
+        });
+        
+        let msg = "Trial saved!";
+        if(shareDocs) msg += ` Shared ${sharedUrls.length} document(s) with the doctor.`;
+        alert(msg);
+
+        favorites.push(trialId);
+        renderTrials(allTrials);
+        renderFavorites();
+    }
+    
+    // Cleanup (Close modals)
+    if(tempTrialIdToSave) tempTrialIdToSave = null;
+    const permModal = document.getElementById('permission-modal');
+    if(permModal) permModal.style.display = 'none';
+    const noDocsModal = document.getElementById('no-docs-modal');
+    if(noDocsModal) noDocsModal.style.display = 'none';
+};
         const toggleCompare = (trialId) => {
             const index = toCompare.indexOf(trialId);
             if (index > -1) toCompare.splice(index, 1);
@@ -971,7 +1480,7 @@ document.getElementById('profile-form').addEventListener('submit', async (e) => 
             }
         };
 
-      document.getElementById('add-trial-form').addEventListener('submit', async (e) => {
+     document.getElementById('add-trial-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!currentUser || userProfile.role !== 'doctor') return;
 
@@ -979,43 +1488,55 @@ document.getElementById('profile-form').addEventListener('submit', async (e) => 
             const editingId = form.dataset.editingId; // Check if we are editing
 
             const fullExplanation = document.getElementById('new-trial-explanation').value;
+           
             const trialData = {
                 title: document.getElementById('new-trial-title').value,
+                objective: document.getElementById('new-trial-objective').value,
                 condition: document.getElementById('new-trial-condition').value,
                 hospitalName: document.getElementById('new-trial-hospital').value,
                 location: document.getElementById('new-trial-location').value,
+                eligibilityCriteria: document.getElementById('new-trial-eligibility').value,
                 age_range: [
                     parseInt(document.getElementById('new-trial-age-min').value, 10),
                     parseInt(document.getElementById('new-trial-age-max').value, 10)
                 ],
+                successRate: document.getElementById('new-trial-success').value,
+                timeToOutcome: document.getElementById('new-trial-time').value,
+                sideEffects: document.getElementById('new-trial-side-effects').value.split(',').map(s => s.trim()),
                 duration: document.getElementById('new-trial-duration').value,
                 compensation: document.getElementById('new-trial-compensation').value,
                 explanation: fullExplanation,
-                simpleExplanation: fullExplanation, // AI Simulation (as in original)
+                simpleExplanation: fullExplanation, 
             };
+            
             trialData.doctorName = userProfile.name || 'N/A';
-trialData.doctorSpecialization = userProfile.specialization || 'N/A';
-trialData.doctorWhatsapp = userProfile.whatsapp || 'N/A';
+            trialData.doctorSpecialization = userProfile.specialization || 'N/A';
+            trialData.doctorWhatsapp = userProfile.whatsapp || 'N/A';
+            
             try {
                 if (editingId) {
-                    // --- UPDATE LOGIC ---
+                    // --- UPDATE EXISTING TRIAL ---
                     trialData.lastUpdated = firebase.firestore.FieldValue.serverTimestamp();
-                    
                     await db.collection('trials').doc(editingId).update(trialData);
                     alert("Trial updated successfully!");
-                    delete form.dataset.editingId; // Clear editing state
-                    form.querySelector('button[type="submit"]').textContent = 'Add Trial';
+                    
+                    // Clear editing state
+                    delete form.dataset.editingId; 
+                    
+                    // --- FIX: Reset Button Text Back to 'Save Trial' ---
+                    const submitBtn = document.querySelector('button[form="add-trial-form"]');
+                    if(submitBtn) submitBtn.innerHTML = '<i class="fas fa-plus-circle"></i> Save Trial';
+
                 } else {
-                    // --- ADD LOGIC (Original) ---
+                    // --- ADD NEW TRIAL ---
                     trialData.doctorId = userProfile.doctorId || currentUser.uid;
                     trialData.postedBy = currentUser.uid;
                     trialData.postedAt = firebase.firestore.FieldValue.serverTimestamp();
-                    
                     await db.collection('trials').add(trialData);
                     alert("Trial added successfully!");
                 }
                 
-                form.reset(); // Reset form for both add and update
+                form.reset(); 
                 document.getElementById('new-trial-location').value = userProfile?.location || "";
             } catch (err) {
                 console.error("Error saving trial:", err);
@@ -1039,83 +1560,115 @@ trialData.doctorWhatsapp = userProfile.whatsapp || 'N/A';
                 : `<p>You haven't added any trials yet.</p>`;
         };
         
-       const loadPatientLeads = () => {
-             const container = document.getElementById('patient-leads-container');
-             container.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Loading leads...</p>`;
-             
-             const doctorId = userProfile.doctorId || currentUser.uid;
-             
-             db.collectionGroup('favorites').where('doctorId', '==', doctorId)
-               .onSnapshot(async (favoritesSnapshot) => {
-                 
-                 if (favoritesSnapshot.empty) {
-                     container.innerHTML = `<p>No patients have saved your trials yet.</p>`; return;
-                 }
+       // --- UPDATED DOCTOR LEADS (Step 3E) ---
+// --- UPDATED DOCTOR LEADS (Step C) ---
+// --- UPDATED DOCTOR LEADS ---
+const loadPatientLeads = () => {
+    const container = document.getElementById('patient-leads-container');
+    container.innerHTML = `<p><i class="fas fa-spinner fa-spin"></i> Loading leads...</p>`;
+    
+    const doctorId = userProfile.doctorId || currentUser.uid;
+    
+    db.collectionGroup('favorites').where('doctorId', '==', doctorId)
+      .onSnapshot(async (snap) => {
+       if (snap.empty) { 
+            container.innerHTML = `
+                <div style="text-align: center; padding: 30px; color: #9ca3af;">
+                    <i class="fas fa-user-slash" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+                    No patient leads yet.
+                </div>`; 
+            return; 
+        }
 
-                 // --- FIX START: Logic changed to group trials by patient ---
-                 const patientLeads = {}; // Use an object to group trials by patient ID
+        const leads = {};
+        const userDocs = await Promise.all(snap.docs.map(d => d.ref.parent.parent.get()));
 
-                 const userPromises = favoritesSnapshot.docs.map(doc => doc.ref.parent.parent.get());
-                 const userDocs = await Promise.all(userPromises);
+        userDocs.forEach((uDoc, i) => {
+            if(uDoc.exists) {
+                const uData = uDoc.data();
+                const favData = snap.docs[i].data();
+                const pid = uDoc.id;
 
-                 userDocs.forEach((userDoc, index) => {
-                    if (userDoc.exists) {
-                        const userData = userDoc.data();
-                        const favoriteData = favoritesSnapshot.docs[index].data();
-                        
-                        // If we haven't seen this patient yet, create an entry for them
-                        if (!patientLeads[userDoc.id]) {
-                            const whatsappLink = userData.whatsapp 
-                                ? `<a href="https://wa.me/${userData.whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent(`HI I AM DR. ${userProfile?.name || 'Your Doctor'} FROM TRIALMATCH.`)}" target="_blank" class="btn" style="padding: 5px 10px; background-color: var(--accent-green); color: white; border: none;" title="Chat on WhatsApp"><i class="fab fa-whatsapp"></i></a>` 
-                                : '';
+                if(!leads[pid]) {
+                    // PREPARE DOC DATA FOR BUTTON (Store in dataset)
+                    // We only enable the button if shareDocs is true AND there are URLs
+                    const sharedUrls = favData.sharedDocUrls || [];
+                    const hasShared = favData.shareDocs && sharedUrls.length > 0;
+                    
+                    // Safe stringify for the dataset
+                    const urlsString = encodeURIComponent(JSON.stringify(sharedUrls));
 
-                            patientLeads[userDoc.id] = {
-                                details: `
-                                    <strong>Patient:</strong> ${userData.name || 'N/A'} (${userData.email}) <br>
-                                    <strong>Age:</strong> ${userData.age || 'N/A'} <br>`,
-                                whatsappLink: whatsappLink,
-                                trials: [] // An array to hold all their saved trials
-                            };
-                        }
-                        
-                        // Add the current trial title to this patient's list of trials
-                        patientLeads[userDoc.id].trials.push(favoriteData.trialTitle);
-                    }
-                 });
+                    let docsBtn = hasShared
+                        ? `<button class="btn btn-sm" onclick="openDocViewer('${pid}', '${uData.name}', '${urlsString}')" style="background:var(--primary-color); color:white; padding:5px 10px; font-size:0.8rem; border:none; border-radius:4px; margin-left:5px; cursor:pointer;">View Docs</button>`
+                        : `<span style="font-size:0.8rem; color:#888;">(Private)</span>`;
+                    
+                    let whatsappBtn = uData.whatsapp 
+                        ? `<a href="https://wa.me/${uData.whatsapp}" target="_blank" class="btn btn-sm" style="background:var(--accent-green); color:white; padding:5px 10px; font-size:0.8rem;">Chat</a>` 
+                        : '';
 
-                 // Now, build the final HTML from the grouped data
-                 const finalHtml = Object.values(patientLeads).map(lead => {
-                     return `
-                        <div class="list-item">
-                            <div>
-                                ${lead.details}
-                                <strong>Saved Trials:</strong> 
-                                <ul>
-                                    ${lead.trials.map(title => `<li>${title}</li>`).join('')}
-                                </ul>
-                            </div>
-                            ${lead.whatsappLink}
-                        </div>
-                     `;
-                 }).join('');
-                 
-                 container.innerHTML = finalHtml || `<p>No patients have saved your trials yet.</p>`;
-                 // --- FIX END ---
-
-           }, (error) => {
-                console.error("Error listening for patient leads:", error);
-                
-                let errorMsg = "Could not load patient leads. Please try again.";
-                if (error.code === 'failed-precondition' || error.message.toLowerCase().includes('index')) {
-                    errorMsg = `<b>Error: Missing Firestore Index.</b><br>
-                                This query requires a collection-group index. Please go to your 
-                                Firestore 'Indexes' tab and 'Enable' the 'Ascending' index 
-                                for 'Collection group scope'.`;
+                   leads[pid] = {
+                        html: `<div class="list-item">
+                                <div style="flex-grow: 1;">
+                                    <strong>${uData.name}</strong><br>
+                                    <span style="font-size: 0.9rem; color: #666;">Age: ${uData.age || 'N/A'}</span>
+                                </div>
+                                
+                                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                                    ${whatsappBtn} 
+                                    ${docsBtn}
+                                </div>
+                               </div>`,
+                        trials: []
+                    };
                 }
+                leads[pid].trials.push(favData.trialTitle);
+            }
+        });
 
-                container.innerHTML = `<p style="color: var(--accent-red);">${errorMsg}</p>`;
-             });
-        };
+        container.innerHTML = Object.values(leads).map(l => l.html).join('');
+    });
+};
+
+// --- UPDATED VIEWER (Uses Shared List + Live Profile Check) ---
+window.openDocViewer = async (pid, pname, encodedUrls) => {
+    const nameLabel = document.getElementById('doc-viewer-patient-name');
+    const gallery = document.getElementById('doc-viewer-gallery');
+    
+    if(nameLabel) nameLabel.textContent = `Shared Docs: ${pname}`;
+    if(gallery) gallery.innerHTML = '<p>Verifying access...</p>';
+    
+    document.getElementById('doc-viewer-modal').style.display = 'block';
+
+    try {
+        // 1. Decode the allowed list from the button
+        const allowedUrls = JSON.parse(decodeURIComponent(encodedUrls));
+
+        // 2. Fetch LIVE profile to ensure images weren't deleted by patient
+        const doc = await db.collection('users').doc(pid).get();
+        if(!doc.exists) { gallery.innerHTML = 'User not found.'; return; }
+        
+        const userData = doc.data();
+        const currentDocs = userData.medicalDocuments || [];
+
+        // 3. FILTER: Only show docs that are BOTH in the shared list AND currently exist
+        const docsToShow = currentDocs.filter(d => allowedUrls.includes(d.url));
+
+        if(gallery) {
+            gallery.innerHTML = docsToShow.length 
+                ? docsToShow.map(d => `
+                    <div class="doc-item">
+                        <img src="${d.url}" onclick="window.open('${d.url}')">
+                        <div style="text-align:center; font-size:0.8rem; padding:5px;">${d.name}</div>
+                    </div>`).join('') 
+                : '<p>No shared documents found (Patient may have deleted them).</p>';
+        }
+
+    } catch(e) {
+        console.error(e);
+        gallery.innerHTML = '<p>Error loading documents.</p>';
+    }
+};
+
         // --- ANALYTICS ---
         const updateDynamicChart = (data) => {
             const ctx = document.getElementById('trialsChart').getContext('2d');
@@ -1138,6 +1691,118 @@ trialData.doctorWhatsapp = userProfile.whatsapp || 'N/A';
 
 // --- END Chatbot Logic ---
 
+// --- Force Chatbot Close to Work ---
+document.getElementById('chatbot-close')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // stop modal handler from catching it
+    document.getElementById('chatbot-widget').classList.add('d-none');
+});
+
+// --- FIX: Trial Details View Logic (Moved Inside Scope) ---
+const openTrialDetails = (trialId) => {
+            // Now this function can access 'allTrials'
+            const trial = allTrials.find(t => t.id === trialId);
+            if (!trial) return;
+
+            // 1. Hide List, Show Details
+            document.getElementById('patient-view').classList.add('d-none');
+            document.getElementById('trial-details-view').classList.remove('d-none');
+            window.scrollTo(0, 0);
+
+            // 2. Populate Data
+            document.getElementById('detail-title').textContent = trial.title;
+            document.getElementById('detail-objective').textContent = trial.objective || "Objective not specified.";
+            // --- FIX: VISUAL DIFFERENTIATION FOR ELIGIBILITY ---
+          // ... inside openTrialDetails ...
+
+            // --- FIX: Formatted Criteria + Added Age Range Display ---
+            const rawCriteria = trial.eligibilityCriteria || "Contact for details.";
+            
+            let formattedCriteria = rawCriteria
+                .replace(/\n/g, '<br>')
+                .replace(/(Inclusion[:\s-]*)/gi, '</div><div class="criteria-inc"><i class="fas fa-check-circle"></i> <strong>$1</strong> ')
+                .replace(/(Exclusion[:\s-]*)/gi, '</div><div class="criteria-exc"><i class="fas fa-times-circle"></i> <strong>$1</strong> ');
+
+            // Calculate Age String
+            const ageDisplay = (trial.age_range && trial.age_range.length === 2) 
+                ? `${trial.age_range[0]} - ${trial.age_range[1]} Years` 
+                : 'Not specified';
+
+            // Append Age Range to the Eligibility Box
+            document.getElementById('detail-eligibility').innerHTML = `
+                <div>${formattedCriteria}</div>
+                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1); font-weight: 500; color: var(--primary-color);">
+                    <i class="fas fa-birthday-cake"></i> Required Age: <span style="color: #333;">${ageDisplay}</span>
+                </div>
+            `;
+            
+            // ... continue with detail-success-rate ...
+            document.getElementById('detail-success-rate').textContent = trial.successRate ? `${trial.successRate}%` : 'N/A';
+            document.getElementById('detail-time').textContent = trial.timeToOutcome || trial.duration || 'N/A';
+
+            // 3. Populate Side Effects
+            const sideEffectsContainer = document.getElementById('detail-side-effects');
+            sideEffectsContainer.innerHTML = '';
+            if (trial.sideEffects && trial.sideEffects.length > 0) {
+                const effects = Array.isArray(trial.sideEffects) ? trial.sideEffects : trial.sideEffects.split(',');
+                effects.forEach(effect => {
+                    const span = document.createElement('span');
+                    span.className = 'side-effect-tag';
+                    span.innerHTML = `<i class="fas fa-allergies"></i> ${effect.trim()}`;
+                    sideEffectsContainer.appendChild(span);
+                });
+            } else {
+                sideEffectsContainer.innerHTML = '<span>None reported</span>';
+            }
+
+            // 4. Generate Random Mock Testimonials
+           // 4. Generate Random Mock Testimonials
+            const mockTestimonials = [
+                // Added 'gender' property to decide which icon to show
+                { text: "The simplified explanation really helped me understand what I was getting into.", author: "Rahul S.", gender: "male" },
+                { text: "Grateful for the clear eligibility criteria. Saved me so much time.", author: "Priya M.", gender: "female" },
+                { text: "The doctor was very responsive via the WhatsApp link provided.", author: "Amit K.", gender: "male" },
+                { text: "I felt safe knowing the success rates beforehand.", author: "Sneha D.", gender: "female" }
+            ];
+            
+            // Randomly pick 2 testimonials
+            const selectedTestimonials = mockTestimonials.sort(() => 0.5 - Math.random()).slice(0, 2);
+            
+            const testimonialsContainer = document.getElementById('detail-testimonials');
+            testimonialsContainer.innerHTML = selectedTestimonials.map(t => {
+                // Logic: Choose icon and color based on gender
+                // Male = Tie Icon (Blue), Female = User Icon (Purple/Pink)
+                const iconClass = t.gender === 'male' ? 'fa-user-tie' : 'fa-user'; 
+                const iconColor = t.gender === 'male' ? '#3b82f6' : '#8b5cf6'; 
+
+                return `
+                <div class="card glass-card" style="padding: 25px; text-align: center; display: flex; flex-direction: column; align-items: center;">
+                    <div style="font-size: 2.5rem; color: ${iconColor}; margin-bottom: 12px; background: rgba(255,255,255,0.5); width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                        <i class="fas ${iconClass}"></i>
+                    </div>
+                    
+                    <div style="color: #fbbf24; margin-bottom: 12px; font-size: 0.9rem;">
+                        <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                    </div>
+
+                    <p style="font-style: italic; font-size: 0.95rem; color: #4b5563; margin-bottom: 15px; line-height: 1.5;">"${t.text}"</p>
+                    
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--primary-color); border-top: 1px solid rgba(0,0,0,0.05); padding-top: 10px; width: 100%;">
+                        - ${t.author}
+                    </div>
+                </div>
+            `}).join('');
+        };
+
+        // Handle Back Button
+       
+        document.getElementById('back-to-trials-btn').addEventListener('click', () => {
+            document.getElementById('trial-details-view').classList.add('d-none');
+            document.getElementById('patient-view').classList.remove('d-none');
+            // Scroll back to the trials list so user doesn't lose their place
+            document.getElementById('trials-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+
         // --- INITIALIZATION ---
         const init = () => {
             if (localStorage.getItem('theme') === 'dark') {
@@ -1146,12 +1811,332 @@ trialData.doctorWhatsapp = userProfile.whatsapp || 'N/A';
             }
             resetToLoggedOutState();
         };
+// A. Seed Mock Data if Empty
+    const seedForumData = async () => {
+        const snap = await db.collection('forum_questions').get();
+        if (snap.empty) {
+            const batch = db.batch();
+            const mockQs = [
+                {
+                    title: "Is it safe to join a Phase I trial for Diabetes?",
+                    body: "I have been diagnosed with Type 2 Diabetes recently and saw a Phase I trial listed. I'm worried about safety since it's the first phase. Has anyone done this?",
+                    category: "Safety",
+                    authorName: "Rohan G.",
+                    authorRole: "patient",
+                    createdAt: firebase.firestore.Timestamp.now(),
+                    answerCount: 2
+                },
+                {
+                    title: "How long does it take to get reimbursed for travel?",
+                    body: "Many trials mention compensation for travel. Does anyone know if this is paid upfront or do we have to submit bills later?",
+                    category: "General",
+                    authorName: "Sarah L.",
+                    authorRole: "patient",
+                    createdAt: firebase.firestore.Timestamp.now(),
+                    answerCount: 1
+                },
+                {
+                    title: "Any experience with Dr. Sharma's Cardiology trials?",
+                    body: "I am considering the new Heart Failure trial at City Hospital. The doctor seems nice. Any reviews?",
+                    category: "Success Stories",
+                    authorName: "Mike T.",
+                    authorRole: "patient",
+                    createdAt: firebase.firestore.Timestamp.now(),
+                    answerCount: 0
+                }
+            ];
 
-        init();
+            mockQs.forEach(q => {
+                const docRef = db.collection('forum_questions').doc();
+                batch.set(docRef, q);
+                
+                // Add a mock answer to the first one
+                if(q.answerCount > 0 && q.title.includes("Phase I")) {
+                    const ansRef = docRef.collection('answers').doc();
+                    batch.set(ansRef, {
+                        text: "Phase I is primarily for safety, so they monitor you very closely. It is risky but the supervision is 24/7. I participated last year and felt very safe.",
+                        authorName: "Dr. A. Verma",
+                        authorRole: "doctor",
+                        createdAt: firebase.firestore.Timestamp.now()
+                    });
+                     const ansRef2 = docRef.collection('answers').doc();
+                    batch.set(ansRef2, {
+                        text: "Agreed. It was a good experience for me.",
+                        authorName: "Priya K.",
+                        authorRole: "patient",
+                        createdAt: firebase.firestore.Timestamp.now()
+                    });
+                }
+                 if(q.answerCount > 0 && q.title.includes("reimbursed")) {
+                    const ansRef = docRef.collection('answers').doc();
+                    batch.set(ansRef, {
+                        text: "Usually it is reimbursement. You keep the bills and submit them at your monthly visit.",
+                        authorName: "TrialMatch Admin",
+                        authorRole: "admin",
+                        createdAt: firebase.firestore.Timestamp.now()
+                    });
+                 }
+            });
+            await batch.commit();
+            console.log("Mock Forum Data Seeded");
+        }
+    };
+    seedForumData();
+
+    // B. Render Forum Questions List
+    const renderForumQuestions = (questions) => {
+        const container = document.getElementById('forum-questions-container');
+        container.innerHTML = '';
+        
+        if (questions.length === 0) {
+            container.innerHTML = '<p>No questions yet. Be the first to ask!</p>';
+            return;
+        }
+
+        questions.forEach(q => {
+            const card = document.createElement('div');
+            card.className = 'forum-card-item';
+            card.innerHTML = `
+                <div class="forum-card-title">${q.title}</div>
+                <div class="forum-card-snippet">${q.body}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="forum-meta">
+                        <span><i class="fas fa-user-circle"></i> ${q.authorName}</span>
+                        <span class="tag tag-condition" style="font-size:0.75rem; padding: 2px 6px;">${q.category}</span>
+                    </div>
+                    <span class="answer-count"><i class="fas fa-comment-alt"></i> ${q.answerCount || 0} Answers</span>
+                </div>
+            `;
+            card.addEventListener('click', () => openForumDetails(q.id));
+            container.appendChild(card);
+        });
+    };
+
+    // C. Listen for Questions
+   // C. Listen for Questions (FIXED: Global Variable + Search Listener)
+    db.collection('forum_questions').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        // 1. Store data in the GLOBAL variable so Search and Details can use it
+        allForumQuestions = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderForumQuestions(allForumQuestions);
     });
-    // --- Force Chatbot Close to Work ---
-document.getElementById('chatbot-close')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation(); // stop modal handler from catching it
-    document.getElementById('chatbot-widget').classList.add('d-none');
+
+    // --- NEW: Search Functionality ---
+    document.getElementById('forum-search').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        
+        // Filter the global list based on Title OR Body
+        const filtered = allForumQuestions.filter(q => 
+            q.title.toLowerCase().includes(term) || 
+            q.body.toLowerCase().includes(term)
+        );
+        
+        renderForumQuestions(filtered);
+    });
+    // D. View Question Details
+    let currentQuestionId = null;
+    const openForumDetails = (qId) => {
+        currentQuestionId = qId;
+        const qData = allForumQuestions.find(q => q.id === qId); // Need to store them or fetch
+        
+        // Fetch fresh to be sure
+        db.collection('forum_questions').doc(qId).get().then(doc => {
+            if(!doc.exists) return;
+            const data = doc.data();
+            
+            // Switch Views
+            document.getElementById('patient-view').classList.add('d-none');
+            document.getElementById('doctor-dashboard').classList.add('d-none');
+            document.getElementById('forum-details-view').classList.remove('d-none');
+            window.scrollTo(0,0);
+
+            // Populate UI
+            document.getElementById('forum-detail-title').textContent = data.title;
+            document.getElementById('forum-detail-body').textContent = data.body;
+            document.getElementById('forum-detail-author').innerHTML = `<i class="fas fa-user"></i> ${data.authorName} (${data.authorRole})`;
+            document.getElementById('forum-detail-date').textContent = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleDateString() : 'Just now';
+            document.getElementById('forum-detail-category').textContent = data.category;
+
+            // Load Answers
+            loadAnswers(qId);
+        });
+    };
+    
+    // E. Load Answers Real-time
+    const loadAnswers = (qId) => {
+        db.collection('forum_questions').doc(qId).collection('answers')
+          .orderBy('createdAt', 'asc')
+          .onSnapshot(snap => {
+              const container = document.getElementById('forum-answers-container');
+              container.innerHTML = '';
+              
+              if(snap.empty) {
+                  container.innerHTML = '<p style="color:#666; font-style:italic;">No answers yet. Be the first!</p>';
+                  return;
+              }
+
+              snap.forEach(doc => {
+                  const ans = doc.data();
+                  const div = document.createElement('div');
+                  div.className = 'answer-card';
+                  div.innerHTML = `
+                    <div class="answer-header">
+                        <strong>${ans.authorName} <span style="font-weight:normal; font-size:0.8rem;">(${ans.authorRole})</span></strong>
+                        <span>${ans.createdAt ? new Date(ans.createdAt.toDate()).toLocaleDateString() : ''}</span>
+                    </div>
+                    <div class="answer-body">${ans.text}</div>
+                  `;
+                  container.appendChild(div);
+              });
+          });
+    };
+
+    // F. Handle Back Button
+// F. Handle Back Button (FIXED: Stays on Community Tab)
+    document.getElementById('back-to-forum-btn').addEventListener('click', () => {
+        // 1. Hide the Details View
+        document.getElementById('forum-details-view').classList.add('d-none');
+
+        // 2. Show the Parent View Container (for both Doctor and Patient)
+        document.getElementById('patient-view').classList.remove('d-none');
+        document.getElementById('doctor-dashboard').classList.add('d-none');
+
+        // 3. FORCE TAB STATE: Hide ALL sections first
+        // (This stops Home, Features, and My Saved from popping up)
+        document.querySelectorAll('#patient-view > section').forEach(sec => {
+            sec.classList.add('d-none');
+        });
+
+        // 4. Show ONLY the Forum Section
+        document.getElementById('forum-section').classList.remove('d-none');
+
+        // 5. Scroll to top
+        window.scrollTo(0, 0);
+    });
+
+    // G. Modal Logic (Ask Question)
+    const askModal = document.getElementById('ask-question-modal');
+    document.getElementById('open-ask-modal-btn').addEventListener('click', () => {
+        if(!currentUser) { authModal.style.display = 'block'; return; }
+        askModal.style.display = 'block';
+    });
+    document.getElementById('close-ask-modal').addEventListener('click', () => askModal.style.display = 'none');
+
+    // H. Submit New Question
+    document.getElementById('ask-question-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = document.getElementById('ask-title').value;
+        const category = document.getElementById('ask-category').value;
+        const body = document.getElementById('ask-body').value;
+
+        try {
+            await db.collection('forum_questions').add({
+                title, category, body,
+                authorName: userProfile.name,
+                authorRole: userProfile.role,
+                authorId: currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                answerCount: 0
+            });
+            alert('Question posted successfully!');
+            askModal.style.display = 'none';
+            e.target.reset();
+        } catch(err) {
+            console.error(err);
+            alert('Error posting question.');
+        }
+    });
+
+    // I. Submit Answer
+    document.getElementById('post-answer-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if(!currentUser) { authModal.style.display = 'block'; return; }
+        if(!currentQuestionId) return;
+
+        const text = document.getElementById('new-answer-text').value;
+        try {
+            // 1. Add Answer
+            await db.collection('forum_questions').doc(currentQuestionId).collection('answers').add({
+                text,
+                authorName: userProfile.name,
+                authorRole: userProfile.role,
+                authorId: currentUser.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // 2. Increment Counter
+            await db.collection('forum_questions').doc(currentQuestionId).update({
+                answerCount: firebase.firestore.FieldValue.increment(1)
+            });
+
+            document.getElementById('new-answer-text').value = '';
+        } catch(err) {
+            console.error(err);
+            alert('Error posting answer.');
+        }
+    });
+       // Upload Listener
+const uploadArea = document.getElementById('upload-dropzone');
+if(uploadArea) {
+    uploadArea.addEventListener('click', () => document.getElementById('medical-file-input').click());
+    document.getElementById('medical-file-input').addEventListener('change', handleFileUpload);
+}
+
+// --- STEP D: NEW EVENT LISTENERS (For Selective Sharing & No Docs) ---
+
+// 1. Permission Modal (Select Docs) - Note: ID changed to perm-share-btn in HTML
+const permShareBtn = document.getElementById('perm-share-btn');
+const permDenyBtn = document.getElementById('perm-deny-btn');
+
+if(permShareBtn) {
+    permShareBtn.addEventListener('click', () => {
+        // Gather all checked URLs
+        const checkboxes = document.querySelectorAll('#doc-selection-list input[type="checkbox"]:checked');
+        const selectedUrls = Array.from(checkboxes).map(cb => cb.value);
+        
+        // Save with shareDocs = true AND the list of specific files
+        processFavoriteToggle(tempTrialIdToSave, true, selectedUrls);
+    });
+}
+
+if(permDenyBtn) {
+    permDenyBtn.addEventListener('click', () => {
+        // Save with shareDocs = false (Share nothing)
+        processFavoriteToggle(tempTrialIdToSave, false, []);
+    });
+}
+
+// 2. "No Docs Found" Modal Buttons
+const noDocsYes = document.getElementById('no-docs-yes-btn');
+const noDocsNo = document.getElementById('no-docs-no-btn');
+
+if(noDocsYes) {
+    noDocsYes.addEventListener('click', () => {
+        // Close modal
+        document.getElementById('no-docs-modal').style.display = 'none';
+        
+        // Redirect/Scroll to upload section
+        const section = document.getElementById('medical-history-section');
+        section.classList.remove('d-none');
+        section.scrollIntoView({ behavior: 'smooth' });
+        
+        // Highlight it briefly
+        section.style.border = "2px solid var(--accent-green)";
+        setTimeout(() => section.style.border = "none", 2000);
+        
+        tempTrialIdToSave = null; // Reset
+    });
+}
+
+if(noDocsNo) {
+    noDocsNo.addEventListener('click', () => {
+        // Just save without docs
+        processFavoriteToggle(tempTrialIdToSave, false, []);
+    });
+}
+// Close Doc Viewer
+document.getElementById('close-doc-viewer').addEventListener('click', () => {
+    document.getElementById('doc-viewer-modal').style.display = 'none';
 });
+
+    init();
+    }); // --- END DOMContentLoaded ---

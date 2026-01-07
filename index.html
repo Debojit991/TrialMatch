@@ -1,3 +1,55 @@
+<!--
+    TrialMatch+ Main HTML Page
+
+    Overview:
+    ----------
+    This is the main HTML file for TrialMatch+, a clinical trial companion platform that helps patients and doctors connect with relevant clinical trials. The application features AI-powered explanations, personalized trial matching, and a dedicated doctor portal.
+
+    Key Features:
+    -------------
+    - Responsive design using Google Fonts (Poppins) and Font Awesome icons.
+    - Patient and Doctor views with dynamic navigation based on user role.
+    - Patient features:
+            * Profile creation and editing.
+            * Filter and search for clinical trials by condition and location.
+            * AI-generated simplified trial explanations.
+            * Save favorite trials, export as PDF, and compare saved trials.
+            * Analytics dashboard with Chart.js.
+    - Doctor features:
+            * Add and manage clinical trials.
+            * View patient leads (patients interested in their trials).
+            * Doctor-specific profile fields.
+    - Unified authentication modal for login, signup, and Google sign-in.
+    - Profile modal for both patients and doctors.
+    - Chatbot assistant widget for user support and FAQs.
+    - Modals for trial comparison and profile management.
+    - Integration with Firebase for authentication and Firestore database.
+    - Uses jsPDF and jsPDF-AutoTable for PDF export functionality.
+
+    Structure:
+    ----------
+    - <header>: Navigation bar with theme switch, user profile, and authentication controls.
+    - <main>: Patient-facing sections including hero, features, how-it-works, trial search, testimonials, favorites, analytics, and call-to-action.
+    - <section id="doctor-dashboard">: Doctor portal for managing trials and patient leads.
+    - Modals: Auth modal, profile modal, comparison modal, and chatbot widget.
+    - External scripts and stylesheets are loaded via CDN for fonts, icons, Firebase, Chart.js, and PDF export.
+
+    Accessibility & Usability:
+    --------------------------
+    - Uses semantic HTML and ARIA-friendly controls.
+    - Responsive grid layouts for cards and sections.
+    - Buttons and forms are accessible and keyboard-friendly.
+    - Error and success messages for user feedback.
+
+    Customization:
+    --------------
+    - Style customizations are handled in 'style.css'.
+    - Main application logic is in 'script.js'.
+    - Firebase configuration and initialization should be set in 'script.js'.
+    Note:
+    - All dynamic content (user profile, trial lists, navigation links, etc.) is populated and managed via JavaScript.
+    - Ensure that Firebase project credentials are securely configured in the JavaScript file.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,6 +89,12 @@
                 </ul>
             </nav>
             <div class="nav-utils">
+                <select id="language-selector" class="lang-select">
+    <option value="en">English</option>
+    <option value="bn">বাংলা (Bengali)</option>
+    <option value="mr">मराठी (Marathi)</option>
+    <option value="ta">தமிழ் (Tamil)</option>
+</select>
                 <div class="theme-switch-wrapper">
                     <label class="theme-switch" for="theme-checkbox">
                         <input type="checkbox" id="theme-checkbox" />
@@ -117,6 +175,25 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                         <h3 style="margin: 0;">Your Patient Profile</h3>
                         </div>
+                        <div id="medical-history-section" class="card glass-card d-none" style="margin-bottom: 30px; padding: 20px;">
+    <h3><i class="fas fa-file-medical"></i> Medical History & Documents</h3>
+    <p style="color: #666; font-size: 0.9rem;">Upload reports or scans. You can choose to share these with doctors when saving a trial.</p>
+    
+    <div class="upload-area" id="upload-dropzone">
+        <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: var(--primary-color);"></i>
+        <p>Click to Upload Images</p>
+        <input type="file" id="medical-file-input" multiple accept="image/*" style="display: none;">
+    </div>
+    
+    <div id="upload-progress-container" class="d-none" style="margin-top: 10px;">
+        <div style="width: 100%; background: #e5e7eb; height: 8px; border-radius: 4px;">
+            <div id="upload-progress-bar" style="width: 0%; background: var(--accent-green); height: 100%; border-radius: 4px; transition: width 0.3s;"></div>
+        </div>
+        <small id="upload-status-text">Uploading...</small>
+    </div>
+
+    <div id="medical-docs-gallery" class="docs-gallery" style="margin-top: 20px;"></div>
+</div>
                     <div id="patient-profile-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; border-bottom: 1px solid rgba(156, 163, 175, 0.3); padding-bottom: 20px;">
                         </div>
                     
@@ -193,6 +270,27 @@
                 </div>
             </div>
         </section>
+        <section id="forum-section" class="section d-none">
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <h2 class="section-title" style="margin-bottom: 10px; text-align: left;">Community Forum</h2>
+                <p>Ask questions, share experiences, and connect with others.</p>
+            </div>
+            <button id="open-ask-modal-btn" class="btn btn-primary"><i class="fas fa-plus"></i> Ask a Question</button>
+        </div>
+
+        <div class="card glass-card" style="margin-bottom: 20px; padding: 15px;">
+            <div class="form-group" style="margin: 0;">
+                <input type="text" id="forum-search" placeholder="Search questions..." style="width: 100%; border: none; background: transparent; outline: none;">
+            </div>
+        </div>
+
+        <div id="forum-questions-container" class="grid-1" style="display: flex; flex-direction: column; gap: 15px;">
+            <p style="text-align: center;">Loading discussions...</p>
+        </div>
+    </div>
+</section>
         
         <section class="final-cta card glass-card">
             <div class="container">
@@ -203,6 +301,82 @@
         </section>
 
     </main>
+  <section id="trial-details-view" class="container d-none" style="padding-top: 100px; padding-bottom: 60px;">
+        <button id="back-to-trials-btn" class="btn btn-secondary" style="margin-bottom: 20px;">
+            <i class="fas fa-arrow-left"></i> Back to Trials
+        </button>
+
+        <div class="card glass-card" style="padding: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+                <h1 id="detail-title" style="margin: 0; color: var(--primary-color);">Trial Title</h1>
+                <span id="detail-status" class="tag tag-condition" style="font-size: 1rem;">Recruiting</span>
+            </div>
+            
+            <p id="detail-objective" style="font-size: 1.2rem; font-weight: 500; color: #4b5563; margin-bottom: 30px; border-left: 4px solid var(--secondary-color); padding-left: 15px;">
+                </p>
+
+            <div class="details-grid">
+                <div class="detail-box">
+                    <h4><i class="fas fa-user-check"></i> Eligibility & Exclusions</h4>
+                    <p id="detail-eligibility">Loading...</p>
+                </div>
+              <div class="detail-box">
+                    <h4><i class="fas fa-chart-line"></i> Success Rate</h4>
+                    <div id="detail-success-rate" style="font-size: 2rem; font-weight: bold; color: var(--accent-green);">--%</div>
+                    <small style="display: flex; align-items: center; gap: 6px; color: #6b7280;">
+                        <i class="fas fa-info-circle"></i> Based on previous phases
+                    </small>
+                </div>
+                <div class="detail-box">
+                    <h4><i class="fas fa-clock"></i> Time to Outcome</h4>
+                    <p id="detail-time">Loading...</p>
+                </div>
+                 <div class="detail-box">
+                    <h4><i class="fas fa-exclamation-triangle"></i> Common Side Effects</h4>
+                    <div id="detail-side-effects" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        </div>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 40px; margin-bottom: 20px;">Patient Testimonials</h3>
+            <div id="detail-testimonials" class="grid grid-3">
+                </div>
+        </div>
+    </section>
+    <section id="forum-details-view" class="container d-none" style="padding-top: 100px; padding-bottom: 60px;">
+    <button id="back-to-forum-btn" class="btn btn-secondary" style="margin-bottom: 20px;">
+        <i class="fas fa-arrow-left"></i> Back to Forum
+    </button>
+
+    <div class="card glass-card" style="padding: 30px; margin-bottom: 30px; border-left: 5px solid var(--secondary-color);">
+        <h1 id="forum-detail-title" style="margin-top: 0; color: var(--primary-color);">Loading...</h1>
+        <div class="forum-meta" style="margin-bottom: 20px; color: #6b7280; font-size: 0.9rem;">
+            <span id="forum-detail-author"><i class="fas fa-user"></i> ...</span> &bull; 
+            <span id="forum-detail-date">...</span>
+        </div>
+        <p id="forum-detail-body" style="font-size: 1.1rem; line-height: 1.6; white-space: pre-line;">...</p>
+        
+        <div style="margin-top: 20px; display: flex; gap: 15px;">
+            <span class="tag tag-condition" id="forum-detail-category">General</span>
+        </div>
+    </div>
+
+    <h3 style="margin-bottom: 20px;">Answers</h3>
+    
+    <div class="card glass-card" style="padding: 20px; margin-bottom: 30px; background: rgba(255,255,255,0.4);">
+        <h4 style="margin-top: 0;">Write an Answer</h4>
+        <form id="post-answer-form">
+            <div class="form-group">
+                <textarea id="new-answer-text" rows="3" placeholder="Share your knowledge or experience..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Post Answer</button>
+        </form>
+    </div>
+
+    <div id="forum-answers-container" style="display: flex; flex-direction: column; gap: 20px;">
+        </div>
+</section>
+    
 
     <!-- DOCTOR VIEW -->
     <section id="doctor-dashboard" class="d-none">
@@ -210,22 +384,95 @@
             <h2 class="section-title">Doctor Dashboard</h2>
             <div class="doctor-dashboard-grid">
                 <div id="add-trial-section" class="card glass-card">
-                    <h3>Add New Trial</h3>
+                    <div class="card-header-action">
+                        <h3>Add New Trial</h3>
+                        <button type="submit" form="add-trial-form" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> Save Trial
+                        </button>
+                    </div>
+
                     <form id="add-trial-form">
-                        <div class="form-group"><label for="new-trial-title">Title</label><input type="text" id="new-trial-title" required></div>
-                        <div class="form-group"><label for="new-trial-condition">Condition</label><input type="text" id="new-trial-condition" placeholder="e.g., Diabetes" required></div>
-                        <div class="form-group"><label for="new-trial-hospital">Hospital Name</label><input type="text" id="new-trial-hospital" placeholder="e.g., City Hospital" required></div>
-                        <div class="form-group"><label for="new-trial-location">Location (City)</label><input type="text" id="new-trial-location" required></div>
-                        <div class="form-group"><label for="new-trial-age-min">Min Age</label><input type="number" id="new-trial-age-min" required></div>
-                        <div class="form-group"><label for="new-trial-age-max">Max Age</label><input type="number" id="new-trial-age-max" required></div>
-                        <div class="form-group"><label for="new-trial-duration">Duration</label><input type="text" id="new-trial-duration" required placeholder="e.g., 6 Months"></div>
-                        <div class="form-group"><label for="new-trial-compensation">Compensation</label><input type="text" id="new-trial-compensation" required placeholder="e.g., ₹10,000"></div>
+                        
+                        <div class="form-section-title">Basic Information</div>
                         <div class="form-group">
-                            <label for="new-trial-explanation">Detailed Medical Explanation</label>
-                            <textarea id="new-trial-explanation" rows="4" required placeholder="Provide the complete medical details here. Our AI will generate a simplified summary for patients."></textarea>
+                            <label>Trial Title</label>
+                            <input type="text" id="new-trial-title" placeholder="e.g., Phase III Study for Type 2 Diabetes" required>
                         </div>
-                        <button type="submit" class="btn btn-primary">Add Trial</button>
-                    </form>
+                        
+                        <div class="form-group">
+                            <label>Objective (1 Line Summary)</label>
+                            <input type="text" id="new-trial-objective" placeholder="e.g., To evaluate the efficacy of Drug X..." required>
+                        </div>
+                        
+                        <div class="grid grid-2-tight">
+                            <div class="form-group">
+                                <label>Condition</label>
+                                <input type="text" id="new-trial-condition" placeholder="e.g., Diabetes" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Location</label>
+                                <input type="text" id="new-trial-location" required>
+                            </div>
+                        </div>
+
+                         <div class="grid grid-2-tight">
+                             <div class="form-group">
+                                <label>Hospital / Center</label>
+                                <input type="text" id="new-trial-hospital" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Duration</label>
+                                <input type="text" id="new-trial-duration" placeholder="e.g., 6 Months" required>
+                            </div>
+                         </div>
+
+                        <div class="form-section-title">Eligibility Criteria</div>
+                        <div class="form-group highlight-group" style="margin-top: 10px; margin-bottom: 20px;">
+                            <label><i class="fas fa-users-cog"></i> Inclusions & Exclusions</label>
+                            <p style="font-size: 0.8rem; color: #666; margin-bottom: 8px;">
+                                Use separate lines for clarity.
+                            </p>
+                            <textarea id="new-trial-eligibility" rows="4" placeholder="Inclusion: Age 18-40, HbA1c > 7.5%...&#10;Exclusion: History of heart failure..." required></textarea>
+                            
+                            <div class="grid grid-2-tight" style="margin-top: 15px;">
+                                <div class="form-group">
+                                    <label>Min Age</label>
+                                    <input type="number" id="new-trial-age-min" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Max Age</label>
+                                    <input type="number" id="new-trial-age-max" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section-title">Outcomes & Compensation</div>
+                        <div class="grid grid-2-tight">
+                            <div class="form-group">
+                                <label>Success Rate (%)</label>
+                                <input type="number" id="new-trial-success" placeholder="e.g., 85" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Time to Outcome</label>
+                                <input type="text" id="new-trial-time" placeholder="e.g., 3 Months" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Compensation</label>
+                            <input type="text" id="new-trial-compensation" placeholder="e.g., ₹5000 per visit" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Common Side Effects</label>
+                            <input type="text" id="new-trial-side-effects" placeholder="e.g., Nausea, Headache (comma separated)" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Detailed Explanation</label>
+                            <textarea id="new-trial-explanation" rows="4" placeholder="Full medical details for the patient..." required></textarea>
+                        </div>
+                        </form>
                 </div>
                 <div id="doctor-main-content">
                    <div class="doctor-dashboard-tabs">
@@ -384,6 +631,33 @@
             </div>
         </div>
     </div>
+    </div> <div id="ask-question-modal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn close-btn-visible" id="close-ask-modal">&times;</span>
+            <h3>Ask the Community</h3>
+            <form id="ask-question-form">
+                <div class="form-group">
+                    <label>Question Title</label>
+                    <input type="text" id="ask-title" placeholder="e.g., Side effects of Metformin in trials?" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="ask-category">
+                        <option value="General">General</option>
+                        <option value="Side Effects">Side Effects</option>
+                        <option value="Eligibility">Eligibility</option>
+                        <option value="Success Stories">Success Stories</option>
+                        <option value="Technical Support">Technical Support</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Details</label>
+                    <textarea id="ask-body" rows="5" placeholder="Provide more context to help others answer you..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Post Question</button>
+            </form>
+        </div>
+        </div>
          <button id="chatbot-toggle" class="btn btn-primary" title="Chat with Assistant">
         <i class="fas fa-comments"></i>
     </button>
@@ -404,10 +678,55 @@
             </div>
         </div>
         <div id="chatbot-input-container">
+            <button id="chatbot-mic" class="btn btn-secondary" style="margin-right: 5px;"><i class="fas fa-microphone"></i></button>
+            
             <input type="text" id="chatbot-input" placeholder="Ask a question..." autocomplete="off">
             <button id="chatbot-send" class="btn btn-primary"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
+    <div id="permission-modal" class="modal">
+    <div class="modal-content glass-card" style="max-width: 500px;">
+        <div style="text-align: center;">
+            <div style="font-size: 3rem; color: var(--primary-color); margin-bottom: 10px;">
+                <i class="fas fa-file-medical-alt"></i>
+            </div>
+            <h3>Select Documents to Share</h3>
+            <p style="margin-bottom: 20px;">Which medical documents would you like the doctor to see?</p>
+            
+            <div id="doc-selection-list" style="text-align: left; max-height: 200px; overflow-y: auto; margin-bottom: 20px; border: 1px solid #ddd; padding: 10px; border-radius: 8px;">
+                </div>
+
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="perm-share-btn" class="btn btn-primary"><i class="fas fa-check"></i> Share Selected</button>
+                <button id="perm-deny-btn" class="btn btn-secondary"><i class="fas fa-lock"></i> Share Nothing</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="no-docs-modal" class="modal">
+    <div class="modal-content glass-card" style="text-align: center; max-width: 450px;">
+        <div style="font-size: 3rem; color: var(--secondary-color); margin-bottom: 10px;">
+            <i class="fas fa-cloud-upload-alt"></i>
+        </div>
+        <h3>No Medical History Found</h3>
+        <p>You haven't uploaded any documents yet. Would you like to upload your medical history now before saving?</p>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+            <button id="no-docs-yes-btn" class="btn btn-primary">Yes, Upload Now</button>
+            <button id="no-docs-no-btn" class="btn btn-secondary">No, Save Without Docs</button>
+        </div>
+    </div>
+</div>
+</div>
+
+<div id="doc-viewer-modal" class="modal">
+    <div class="modal-content glass-card" style="max-width: 800px; width: 90%;">
+        <span class="close-btn close-btn-visible" id="close-doc-viewer">&times;</span>
+        <h3>Patient Documents</h3>
+        <p id="doc-viewer-patient-name" style="color: var(--primary-color); font-weight: bold;"></p>
+        <div id="doc-viewer-gallery" class="docs-gallery" style="margin-top: 20px;"></div>
+    </div>
+</div>
     <script src="script.js" defer></script>
 </body>
 </html>
