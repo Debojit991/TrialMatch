@@ -3,7 +3,8 @@
  * Handles HTTP requests to the RESTful backend API for patient registration and document ingestion.
  */
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const API_BASE_URL = isLocal ? 'http://localhost:5000/api' : 'https://trial-match-inky.vercel.app/api';
 
 class TrialMatchAPI {
   /**

@@ -55,6 +55,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(xss());
 
+// Root Endpoint
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', message: 'TrialMatch+ API Service is live.' });
+});
+
 // Healthcheck Route
 app.get('/api/health', (req, res) => {
   res.status(200).json({
