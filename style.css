@@ -442,15 +442,19 @@ body.dark-mode .form-group textarea:focus {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 25px;
+            align-items: stretch;
         }
         .trial-card {
             padding: 20px;
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
             gap: 15px;
             border-left: 5px solid var(--primary-color);
             position: relative;
             overflow: hidden;
+            height: 100%;
+            box-sizing: border-box;
         }
         
         .trial-card h3 { margin: 0 0 10px 0; font-size: 1.2rem; }
@@ -461,17 +465,19 @@ body.dark-mode .form-group textarea:focus {
             font-size: 0.9rem;
         }
         .trial-card .info-item i { width: 16px; text-align: center; color: var(--secondary-color); }
-        .simple-explanation {
+        .simple-explanation, .ai-explanation-box {
             background: rgba(238, 242, 255, 0.7);
             border-left: 3px solid var(--primary-color);
-            padding: 15px;
+            padding: 12px;
             border-radius: 8px;
             margin-top: 10px;
             font-size: 0.9rem;
             color: #374151;
+            max-height: 150px;
+            overflow-y: auto;
             animation: fadeIn 0.5s ease;
         }
-        body.dark-mode .simple-explanation { 
+        body.dark-mode .simple-explanation, body.dark-mode .ai-explanation-box { 
             background: rgba(49, 46, 129, 0.7); 
             color: #e5e7eb;
         }

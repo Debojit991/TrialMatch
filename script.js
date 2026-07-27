@@ -2112,18 +2112,24 @@ function openDoctorReviewModal(patientApp) {
     // TAB 2: Raw Uploaded Files & Scans
     const scansGallery = document.getElementById('dr-scans-gallery');
     const docs = patientApp.documents || [];
+    const backendOrigin = (typeof API_BASE_URL !== 'undefined') ? API_BASE_URL.replace(/\/api$/, '') : 'http://localhost:5000';
+
     if (docs.length === 0) {
         scansGallery.innerHTML = '<p style="color:#6b7280;">No raw files uploaded by patient.</p>';
     } else {
         scansGallery.innerHTML = docs.map(d => {
             const isImage = ['jpg', 'jpeg', 'png'].includes(d.file_type.toLowerCase());
-            const fileUrl = d.file_url.startsWith('http') ? d.file_url : `http://localhost:5000${d.file_url}`;
+            let fileUrl = d.signed_url || d.file_url || '';
+            if (fileUrl && !fileUrl.startsWith('http://') && !fileUrl.startsWith('https://')) {
+                fileUrl = `${backendOrigin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+            }
+
             return `
-                <div class="doc-item" style="border:1px solid #ddd; padding:10px; border-radius:8px;">
-                    ${isImage ? `<img src="${fileUrl}" style="max-height:150px; object-fit:cover; width:100%;" onclick="window.open('${fileUrl}')">` : `<div style="text-align:center; font-size:3rem; color:var(--primary-color);"><i class="fas fa-file-pdf"></i></div>`}
-                    <div style="font-weight:600; font-size:0.85rem; margin-top:5px;">${d.file_name}</div>
-                    <div style="font-size:0.75rem; color:#6b7280;">Size: ${(d.file_size / 1024).toFixed(1)} KB</div>
-                    <a href="${fileUrl}" target="_blank" class="btn btn-secondary btn-sm" style="margin-top:5px; width:100%; text-align:center; display:block;">View Raw Document</a>
+                <div class="doc-item" style="border:1px solid #ddd; padding:12px; border-radius:8px; background:rgba(255,255,255,0.9);">
+                    ${isImage ? `<img src="${fileUrl}" style="max-height:160px; object-fit:cover; width:100%; border-radius:6px; margin-bottom:8px; cursor:pointer;" onerror="this.onerror=null; this.src='https://placehold.co/300x200/e2e8f0/475569?text=Scan+Document+Preview';" onclick="window.open('${fileUrl}')">` : `<div style="text-align:center; font-size:3.5rem; color:var(--primary-color); margin-bottom:8px;"><i class="fas fa-file-pdf"></i></div>`}
+                    <div style="font-weight:600; font-size:0.85rem; margin-top:5px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${d.file_name}</div>
+                    <div style="font-size:0.75rem; color:#6b7280; margin-top:2px;">Size: ${(d.file_size / 1024).toFixed(1)} KB</div>
+                    <a href="${fileUrl}" target="_blank" class="btn btn-secondary btn-sm" style="margin-top:8px; width:100%; text-align:center; display:block; padding:6px;"><i class="fas fa-external-link-alt"></i> View Raw Document</a>
                 </div>
             `;
         }).join('');
@@ -2323,20 +2329,31 @@ async function handleFileUpload(file) {
         if (progressBar) progressBar.style.width = '20%';
         if (statusText) statusText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Step 1/3: Registering patient & uploading document...';
 
-        // Register/ensure patient ID in backend DB
+        // Register/ensure patient ID in backend DB dynamically from logged-in user profile
         if (!currentIngestionPatientId) {
+            const dynamicName = (typeof userProfile !== 'undefined' && userProfile?.name) || document.getElementById('profile-name')?.value || 'Patient User';
+            const dynamicAge = (typeof userProfile !== 'undefined' && userProfile?.age) ? parseInt(userProfile.age) : (document.getElementById('profile-dob')?.value ? calculateAge(document.getElementById('profile-dob').value) : 45);
+            const dynamicLocation = (typeof userProfile !== 'undefined' && userProfile?.location) || document.getElementById('location')?.value || document.getElementById('profile-location')?.value || 'Not Specified';
+
             const registered = await TrialMatchAPI.registerPatient({
-                full_name: (typeof userProfile !== 'undefined' && userProfile?.name) || 'Patient User',
-                age: (typeof userProfile !== 'undefined' && userProfile?.age) ? parseInt(userProfile.age) : 45,
+                full_name: dynamicName,
+                age: dynamicAge || 45,
                 gender: 'MALE',
-                location: (typeof userProfile !== 'undefined' && userProfile?.location) || 'Chicago, IL',
+                location: dynamicLocation,
             });
             currentIngestionPatientId = registered.data.id;
             localStorage.setItem('trialmatch_patient_id', currentIngestionPatientId);
         }
 
         // 1. Upload File
-        await TrialMatchAPI.uploadPatientDocument(currentIngestionPatientId, file);
+        const uploadRes = await TrialMatchAPI.uploadPatientDocument(currentIngestionPatientId, file);
+        const uploadedDocData = (uploadRes && uploadRes.data) || {};
+        const backendOrigin = (typeof API_BASE_URL !== 'undefined') ? API_BASE_URL.replace(/\/api$/, '') : 'http://localhost:5000';
+        let fileUrl = uploadedDocData.file_url || '';
+        if (fileUrl && !fileUrl.startsWith('http://') && !fileUrl.startsWith('https://')) {
+            fileUrl = `${backendOrigin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+        }
+
         if (progressBar) progressBar.style.width = '55%';
         if (statusText) statusText.innerHTML = '<i class="fas fa-brain fa-spin"></i> Step 2/3: Analyzing document with OCR & Google Gemini 3.6 Flash...';
 
@@ -2351,8 +2368,8 @@ async function handleFileUpload(file) {
 
         setTimeout(() => {
             if (progressContainer) progressContainer.classList.add('d-none');
-            // Display uploaded document in gallery
-            renderUploadedDocumentItem(file.name, ext);
+            // Display uploaded document in gallery with View Document button
+            renderUploadedDocumentItem(file.name, ext, fileUrl);
             // Open Dynamic Questionnaire Modal
             openDynamicQuestionnaireModal(qRes.data);
         }, 500);
@@ -2364,18 +2381,19 @@ async function handleFileUpload(file) {
     }
 }
 
-// Render uploaded document thumbnail in gallery
-function renderUploadedDocumentItem(fileName, ext) {
+// Render uploaded document thumbnail in gallery with Patient Portal "View Document" button
+function renderUploadedDocumentItem(fileName, ext, fileUrl = '') {
     const gallery = document.getElementById('medical-docs-gallery');
     if (!gallery) return;
-    const isImg = ['.jpg', '.jpeg', '.png'].includes(ext);
+    const isImg = ['.jpg', '.jpeg', '.png'].includes(ext.toLowerCase());
     const item = document.createElement('div');
     item.className = 'doc-item';
-    item.style.cssText = 'border:1px solid #ddd; padding:10px; border-radius:8px; display:inline-block; margin-right:10px; margin-bottom:10px; text-align:center; max-width:140px;';
+    item.style.cssText = 'border:1px solid #ddd; padding:10px; border-radius:8px; display:inline-block; margin-right:10px; margin-bottom:10px; text-align:center; max-width:160px; background:rgba(255,255,255,0.85);';
     item.innerHTML = `
         <div style="font-size:2.5rem; color:var(--primary-color);"><i class="fas ${isImg ? 'fa-file-image' : 'fa-file-pdf'}"></i></div>
-        <div style="font-size:0.8rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:5px;">${fileName}</div>
-        <span class="tag tag-condition" style="font-size:0.7rem; margin-top:4px;">Processed</span>
+        <div style="font-size:0.8rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:5px;" title="${fileName}">${fileName}</div>
+        <span class="tag tag-condition" style="font-size:0.7rem; margin-top:4px; display:inline-block;">Processed</span>
+        ${fileUrl ? `<a href="${fileUrl}" target="_blank" class="btn btn-secondary btn-sm" style="margin-top:6px; font-size:0.75rem; padding:4px 8px; width:100%; display:block;"><i class="fas fa-external-link-alt"></i> View Document</a>` : ''}
     `;
     gallery.appendChild(item);
 }
