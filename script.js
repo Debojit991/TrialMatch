@@ -495,6 +495,7 @@ auth.onAuthStateChanged(async user => {
             updateAuthUI(true, 'patient');
             renderUserProfileCard();
             listenToFavorites();
+            restorePatientSessionState();
             if(typeof updateContent === "function") updateContent(document.getElementById('language-selector').value);
         };
       const setupDoctorView = () => {
@@ -2251,10 +2252,71 @@ async function handleDoctorDecision(decision) {
 let currentIngestionPatientId = localStorage.getItem('trialmatch_patient_id') || null;
 let currentQuestionnaireData = null;
 
-// Initial setup on page load: Hide default trials until ingestion & questionnaire completion
+// Patient Session & State Persistence Lifecycle
+async function restorePatientSessionState() {
+    currentIngestionPatientId = localStorage.getItem('trialmatch_patient_id') || null;
+    if (!currentIngestionPatientId) return;
+
+    const backendOrigin = (typeof API_BASE_URL !== 'undefined') ? API_BASE_URL.replace(/\/api$/, '') : 'http://localhost:5000';
+
+    try {
+        // 1. Fetch Patient Profile & Uploaded Documents from Express Backend
+        const pRes = await TrialMatchAPI.getPatient(currentIngestionPatientId);
+        const patientData = (pRes && pRes.data) || {};
+
+        // Render uploaded documents gallery if files exist
+        if (patientData.documents && patientData.documents.length > 0) {
+            const gallery = document.getElementById('medical-docs-gallery');
+            if (gallery) {
+                gallery.innerHTML = '';
+                patientData.documents.forEach(doc => {
+                    const ext = '.' + (doc.file_name || '').split('.').pop().toLowerCase();
+                    let fileUrl = doc.signed_url || doc.file_url || '';
+                    if (fileUrl && !fileUrl.startsWith('http://') && !fileUrl.startsWith('https://')) {
+                        fileUrl = `${backendOrigin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+                    }
+                    renderUploadedDocumentItem(doc.file_name, ext, fileUrl);
+                });
+            }
+        }
+
+        // 2. Fetch Stored Trial Matches from Express Backend
+        const mRes = await TrialMatchAPI.getPatientMatches(currentIngestionPatientId);
+        const matchData = (mRes && mRes.data) || {};
+        const eligible = matchData.eligible || [];
+        const lessEligible = matchData.less_eligible || [];
+
+        if (eligible.length > 0 || lessEligible.length > 0) {
+            // Re-render trial matches directly
+            renderLiveMatchedTrials(matchData);
+            localStorage.setItem('trialmatch_matches_completed', 'true');
+        } else if (patientData.documents && patientData.documents.length > 0) {
+            // Document present, fetch dynamic questionnaire if pending
+            try {
+                const qRes = await TrialMatchAPI.getPatientQuestionnaire(currentIngestionPatientId);
+                if (qRes && qRes.data) {
+                    openDynamicQuestionnaireModal(qRes.data);
+                }
+            } catch (qErr) {
+                console.log('No pending questionnaire found for active patient session.');
+            }
+        }
+    } catch (err) {
+        console.error('restorePatientSessionState Error:', err);
+        if (err.message && err.message.toLowerCase().includes('not found')) {
+            localStorage.removeItem('trialmatch_patient_id');
+            localStorage.removeItem('trialmatch_matches_completed');
+            currentIngestionPatientId = null;
+        }
+    }
+}
+
+// Initial setup on page load: Restore patient session state or render upload prompt
 document.addEventListener('DOMContentLoaded', () => {
     const trialsContainer = document.getElementById('trials-container');
-    if (trialsContainer && (!currentIngestionPatientId || !localStorage.getItem('trialmatch_matches_completed'))) {
+    if (currentIngestionPatientId) {
+        restorePatientSessionState();
+    } else if (trialsContainer && !localStorage.getItem('trialmatch_matches_completed')) {
         trialsContainer.innerHTML = `
             <div class="card glass-card" style="text-align: center; padding: 40px 20px; color: #4b5563;">
                 <i class="fas fa-file-medical-alt" style="font-size: 3.5rem; color: var(--primary-color); margin-bottom: 15px;"></i>
@@ -2398,7 +2460,7 @@ function renderUploadedDocumentItem(fileName, ext, fileUrl = '') {
     gallery.appendChild(item);
 }
 
-// Open Dynamic Questionnaire Modal
+// Open Dynamic Questionnaire Modal with Draft Persistence
 function openDynamicQuestionnaireModal(questionnaireData) {
     currentQuestionnaireData = questionnaireData;
     const modal = document.getElementById('dynamic-questionnaire-modal');
@@ -2418,16 +2480,41 @@ function openDynamicQuestionnaireModal(questionnaireData) {
         ];
     }
 
-    container.innerHTML = questions.map((q, idx) => `
-        <div class="form-group" style="background: rgba(243, 244, 246, 0.7); padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-color);">
-            <label style="font-weight: 600; color: var(--primary-color); font-size: 0.95rem; display: block; margin-bottom: 8px;">
-                Question ${idx + 1}: ${q} ${idx === 0 ? '<span style="color:red">*</span>' : ''}
-            </label>
-            <input type="text" class="questionnaire-input" data-question="${encodeURIComponent(q)}" 
-                   placeholder="Type your answer here..." required 
-                   style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem;" />
-        </div>
-    `).join('');
+    // Restore draft answers if available
+    const savedDraft = currentIngestionPatientId ? sessionStorage.getItem(`draft_q_${currentIngestionPatientId}`) : null;
+    let draftObj = {};
+    if (savedDraft) {
+        try { draftObj = JSON.parse(savedDraft); } catch (e) {}
+    }
+
+    container.innerHTML = questions.map((q, idx) => {
+        const val = draftObj[q] || '';
+        return `
+            <div class="form-group" style="background: rgba(243, 244, 246, 0.7); padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-color);">
+                <label style="font-weight: 600; color: var(--primary-color); font-size: 0.95rem; display: block; margin-bottom: 8px;">
+                    Question ${idx + 1}: ${q} ${idx === 0 ? '<span style="color:red">*</span>' : ''}
+                </label>
+                <input type="text" class="questionnaire-input" data-question="${encodeURIComponent(q)}" 
+                       value="${val.replace(/"/g, '&quot;')}"
+                       placeholder="Type your answer here..." required 
+                       style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem;" />
+            </div>
+        `;
+    }).join('');
+
+    // Auto-save draft on input change
+    container.querySelectorAll('.questionnaire-input').forEach(input => {
+        input.addEventListener('input', () => {
+            const answersObj = {};
+            container.querySelectorAll('.questionnaire-input').forEach(i => {
+                const key = decodeURIComponent(i.getAttribute('data-question'));
+                answersObj[key] = i.value;
+            });
+            if (currentIngestionPatientId) {
+                sessionStorage.setItem(`draft_q_${currentIngestionPatientId}`, JSON.stringify(answersObj));
+            }
+        });
+    });
 
     modal.style.display = 'block';
 }
@@ -2472,6 +2559,9 @@ document.getElementById('dynamic-questionnaire-form')?.addEventListener('submit'
 
         // 1. Submit Questionnaire
         await TrialMatchAPI.submitQuestionnaire(currentIngestionPatientId, answersObj);
+
+        // Clear draft storage
+        sessionStorage.removeItem(`draft_q_${currentIngestionPatientId}`);
 
         // 2. Run AI Cross-Validation
         await TrialMatchAPI.crossValidate(currentIngestionPatientId);
