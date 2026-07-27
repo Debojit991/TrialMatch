@@ -1149,6 +1149,105 @@ body.dark-mode .detail-box {
     font-weight: 600;
 }
 
+/* --- Phase 4 Human-in-the-Loop Doctor Review & Match UI --- */
+.flag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.flag-high {
+    background: rgba(239, 68, 68, 0.15);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+.flag-medium {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+.flag-low {
+    background: rgba(59, 130, 246, 0.15);
+    color: #2563eb;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.raw-scans-banner {
+    background: linear-gradient(135deg, rgba(254, 243, 199, 0.9), rgba(253, 230, 138, 0.9));
+    border-left: 5px solid #d97706;
+    color: #92400e;
+    padding: 14px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+body.dark-mode .raw-scans-banner {
+    background: linear-gradient(135deg, rgba(120, 53, 15, 0.7), rgba(180, 83, 9, 0.7));
+    color: #fef3c7;
+    border-left-color: #f59e0b;
+}
+
+.side-by-side-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+@media (max-width: 768px) {
+    .side-by-side-grid { grid-template-columns: 1fr; }
+}
+
+.doctor-action-bar {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(229, 231, 235, 0.8);
+    margin-top: 25px;
+}
+body.dark-mode .doctor-action-bar {
+    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(75, 85, 99, 0.5);
+}
+
+.btn-approve {
+    background: #10b981 !important;
+    color: white !important;
+}
+.btn-approve:hover { background: #059669 !important; }
+
+.btn-reject {
+    background: #ef4444 !important;
+    color: white !important;
+}
+.btn-reject:hover { background: #dc2626 !important; }
+
+.btn-more-info {
+    background: #f59e0b !important;
+    color: white !important;
+}
+.btn-more-info:hover { background: #d97706 !important; }
+
+.match-rank-badge {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+
 /* Answer Styles */
 .answer-card {
     padding: 20px;

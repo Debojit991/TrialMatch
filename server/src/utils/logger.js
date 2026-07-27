@@ -1,0 +1,19 @@
+/**
+ * TrialMatch+ Audit & Logging Utility
+ */
+const logger = {
+  info: (msg, meta = {}) => {
+    console.log(`[INFO] [${new Date().toISOString()}] ${msg}`, Object.keys(meta).length ? meta : '');
+  },
+  warn: (msg, meta = {}) => {
+    console.warn(`[WARN] [${new Date().toISOString()}] ${msg}`, Object.keys(meta).length ? meta : '');
+  },
+  error: (msg, error = {}) => {
+    console.error(`[ERROR] [${new Date().toISOString()}] ${msg}`, error.message || error);
+  },
+  audit: (action, patientId, details = {}) => {
+    console.log(`[AUDIT-LOG] [${new Date().toISOString()}] Action: ${action} | PatientId: ${patientId}`, details);
+  },
+};
+
+module.exports = logger;

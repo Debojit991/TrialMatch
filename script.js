@@ -2028,4 +2028,279 @@ document.getElementById('close-doc-viewer').addEventListener('click', () => {
 });
 
     init();
-    }); // --- END DOMContentLoaded ---
+    // --- Phase 4: Doctor Queue & Human-in-the-Loop 3-Tab Review Modal Logic ---
+
+let currentReviewPatientApp = null;
+let currentSelectedMatchResultId = null;
+
+// Tab switcher inside Doctor Dashboard
+document.addEventListener('click', (e) => {
+    const tabBtn = e.target.closest('.doctor-dashboard-tabs .tab-btn');
+    if (!tabBtn) return;
+    
+    const parent = tabBtn.parentElement;
+    parent.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    tabBtn.classList.add('active');
+
+    const targetTabId = tabBtn.getAttribute('data-tab');
+    if (targetTabId) {
+        document.querySelectorAll('#doctor-main-content .tab-content').forEach(tc => tc.classList.remove('active'));
+        const targetContent = document.getElementById(targetTabId);
+        if (targetContent) targetContent.classList.add('active');
+
+        if (targetTabId === 'doctor-queue-tab') {
+            loadDoctorQueue();
+        }
+    }
+
+    // Modal inner tabs switching
+    const drTabId = tabBtn.getAttribute('data-drtab');
+    if (drTabId) {
+        document.querySelectorAll('#doctor-review-modal .dr-tab-content').forEach(tc => tc.classList.add('d-none'));
+        const targetContent = document.getElementById(drTabId);
+        if (targetContent) targetContent.classList.remove('d-none');
+    }
+});
+
+// Refresh button handler
+document.getElementById('refresh-doctor-queue-btn')?.addEventListener('click', loadDoctorQueue);
+
+// Load Doctor Queue Applications from REST API
+async function loadDoctorQueue() {
+    const container = document.getElementById('doctor-queue-container');
+    if (!container) return;
+    container.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Loading application queue from API...</p>';
+
+    try {
+        const response = await TrialMatchAPI.getDoctorApplications();
+        const applications = response.data || [];
+
+        if (applications.length === 0) {
+            container.innerHTML = '<p style="color:#6b7280; text-align:center; padding:20px;">No patient applications currently in queue.</p>';
+            return;
+        }
+
+        container.innerHTML = applications.map(app => {
+            const assessment = app.document_assessment || {};
+            const condition = assessment.suspected_condition || 'Pending Assessment';
+            const highFlags = app.high_severity_count || 0;
+            const totalFlags = app.discrepancy_count || 0;
+            const matchCount = app.match_results ? app.match_results.length : 0;
+
+            let flagBadge = `<span class="flag-badge flag-low"><i class="fas fa-check-circle"></i> Clean Audit</span>`;
+            if (highFlags > 0) {
+                flagBadge = `<span class="flag-badge flag-high"><i class="fas fa-exclamation-triangle"></i> ${highFlags} High Risk Conflict(s)</span>`;
+            } else if (totalFlags > 0) {
+                flagBadge = `<span class="flag-badge flag-medium"><i class="fas fa-info-circle"></i> ${totalFlags} Discrepancy Flag(s)</span>`;
+            }
+
+            const appDataEscaped = encodeURIComponent(JSON.stringify(app));
+
+            return `
+                <div class="list-item" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding:15px; border-bottom:1px solid rgba(229,231,235,0.8);">
+                    <div>
+                        <strong style="font-size:1.1rem; color:var(--primary-color);">${app.full_name}</strong>
+                        <span style="font-size:0.9rem; color:#6b7280; margin-left:10px;">Age: ${app.age} | ${app.gender} | ${app.location}</span>
+                        <div style="margin-top:6px; font-size:0.9rem;">
+                            <strong>Condition:</strong> ${condition}
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
+                        ${flagBadge}
+                        <span class="tag tag-condition" style="font-size:0.85rem;"><i class="fas fa-vials"></i> ${matchCount} Match Evaluated</span>
+                        <button class="btn btn-primary btn-sm review-app-btn" data-app="${appDataEscaped}">
+                            <i class="fas fa-stethoscope"></i> Review Application
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach click listeners to review buttons
+        container.querySelectorAll('.review-app-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const rawData = e.currentTarget.getAttribute('data-app');
+                if (rawData) {
+                    const patientApp = JSON.parse(decodeURIComponent(rawData));
+                    openDoctorReviewModal(patientApp);
+                }
+            });
+        });
+    } catch (err) {
+        console.error('loadDoctorQueue Error:', err);
+        container.innerHTML = `<p style="color:var(--accent-red);">Error loading doctor queue: ${err.message}</p>`;
+    }
+}
+
+// Open 3-Tab Doctor Review Modal
+function openDoctorReviewModal(patientApp) {
+    currentReviewPatientApp = patientApp;
+    const modal = document.getElementById('doctor-review-modal');
+    if (!modal) return;
+
+    // Set Patient Meta Headers
+    document.getElementById('dr-modal-patient-name').innerHTML = `<i class="fas fa-user-md"></i> Clinical Review: ${patientApp.full_name}`;
+    document.getElementById('dr-modal-patient-meta').innerHTML = `Patient ID: ${patientApp.patient_id} | Age: ${patientApp.age} | Gender: ${patientApp.gender} | Location: ${patientApp.location}`;
+
+    // Reset Modal Tab to Tab 1
+    modal.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const tab1Btn = modal.querySelector('[data-drtab="dr-tab-summary"]');
+    if (tab1Btn) tab1Btn.classList.add('active');
+
+    modal.querySelectorAll('.dr-tab-content').forEach(tc => tc.classList.add('d-none'));
+    document.getElementById('dr-tab-summary')?.classList.remove('d-none');
+
+    // TAB 1: AI Evaluation Summary Cards
+    const summaryContainer = document.getElementById('dr-summary-cards-container');
+    const ast = patientApp.document_assessment || {};
+    summaryContainer.innerHTML = `
+        <div class="card glass-card" style="padding:15px;">
+            <h4 style="color:var(--primary-color); margin-top:0;"><i class="fas fa-stethoscope"></i> Primary Condition</h4>
+            <p><strong>Condition:</strong> ${ast.suspected_condition || 'Not specified'}</p>
+            <p><strong>Stage:</strong> ${ast.disease_stage || 'Not specified'}</p>
+            <p><strong>Diagnosis Date:</strong> ${ast.diagnosis_date || 'Not specified'}</p>
+        </div>
+        <div class="card glass-card" style="padding:15px;">
+            <h4 style="color:var(--secondary-color); margin-top:0;"><i class="fas fa-pills"></i> Medications & Labs</h4>
+            <p><strong>Active Medications:</strong> ${ast.medications_listed || 'None listed'}</p>
+            <p><strong>Key Lab Parameters:</strong> ${ast.key_lab_values || 'None listed'}</p>
+        </div>
+        <div class="card glass-card" style="grid-column: 1 / -1; padding:15px;">
+            <h4 style="margin-top:0;"><i class="fas fa-file-alt"></i> AI Clinical Summary</h4>
+            <p style="font-size:0.95rem; line-height:1.5;">${ast.raw_summary || 'No summary available.'}</p>
+        </div>
+    `;
+
+    // TAB 2: Raw Uploaded Files & Scans
+    const scansGallery = document.getElementById('dr-scans-gallery');
+    const docs = patientApp.documents || [];
+    if (docs.length === 0) {
+        scansGallery.innerHTML = '<p style="color:#6b7280;">No raw files uploaded by patient.</p>';
+    } else {
+        scansGallery.innerHTML = docs.map(d => {
+            const isImage = ['jpg', 'jpeg', 'png'].includes(d.file_type.toLowerCase());
+            const fileUrl = d.file_url.startsWith('http') ? d.file_url : `http://localhost:5000${d.file_url}`;
+            return `
+                <div class="doc-item" style="border:1px solid #ddd; padding:10px; border-radius:8px;">
+                    ${isImage ? `<img src="${fileUrl}" style="max-height:150px; object-fit:cover; width:100%;" onclick="window.open('${fileUrl}')">` : `<div style="text-align:center; font-size:3rem; color:var(--primary-color);"><i class="fas fa-file-pdf"></i></div>`}
+                    <div style="font-weight:600; font-size:0.85rem; margin-top:5px;">${d.file_name}</div>
+                    <div style="font-size:0.75rem; color:#6b7280;">Size: ${(d.file_size / 1024).toFixed(1)} KB</div>
+                    <a href="${fileUrl}" target="_blank" class="btn btn-secondary btn-sm" style="margin-top:5px; width:100%; text-align:center; display:block;">View Raw Document</a>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // TAB 3: Cross-Check & Discrepancies
+    const flagsSection = document.getElementById('dr-discrepancy-alerts-section');
+    const flags = patientApp.discrepancy_flags || [];
+
+    if (flags.length === 0) {
+        flagsSection.innerHTML = `
+            <div class="card glass-card" style="padding:15px; border-left:5px solid #10b981;">
+                <h4 style="margin:0; color:#10b981;"><i class="fas fa-check-circle"></i> No Contradictions Detected</h4>
+                <p style="margin-top:5px; font-size:0.9rem;">Patient self-reported answers align with official medical reports.</p>
+            </div>
+        `;
+    } else {
+        flagsSection.innerHTML = `
+            <h4 style="margin-top:0; color:#dc2626;"><i class="fas fa-exclamation-triangle"></i> Detected Data Discrepancy Flags (${flags.length})</h4>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                ${flags.map(f => {
+                    const sevClass = f.severity_level === 'HIGH' ? 'flag-high' : (f.severity_level === 'MEDIUM' ? 'flag-medium' : 'flag-low');
+                    return `
+                        <div class="card glass-card" style="padding:12px; border-left:4px solid ${f.severity_level === 'HIGH' ? '#dc2626' : '#f59e0b'};">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                <strong>${f.conflict_topic}</strong>
+                                <span class="flag-badge ${sevClass}">${f.severity_level} RISK</span>
+                            </div>
+                            <div style="font-size:0.85rem; color:#4b5563;">
+                                <div><strong>Document Evidence:</strong> ${f.document_evidence}</div>
+                                <div><strong>Patient Claim:</strong> ${f.patient_claim}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    // Side-by-side Verbatim typed answers vs report findings
+    const verbatimContainer = document.getElementById('dr-verbatim-answers-container');
+    const reportFindingsContainer = document.getElementById('dr-report-findings-container');
+
+    const verbatimObj = (patientApp.questionnaire && patientApp.questionnaire.verbatim_answers) || {};
+    verbatimContainer.innerHTML = Object.keys(verbatimObj).length > 0 
+        ? Object.entries(verbatimObj).map(([q, a]) => `
+            <div style="padding:8px; background:rgba(243,244,246,0.6); border-radius:6px; font-size:0.85rem;">
+                <strong>${q}:</strong>
+                <p style="margin:4px 0 0 0; color:#1f2937;">"${a}"</p>
+            </div>
+        `).join('')
+        : '<p style="color:#6b7280;">No questionnaire answers submitted yet.</p>';
+
+    reportFindingsContainer.innerHTML = `
+        <div style="padding:8px; background:rgba(243,244,246,0.6); border-radius:6px; font-size:0.85rem;">
+            <strong>Suspected Condition:</strong> ${ast.suspected_condition || 'N/A'}
+        </div>
+        <div style="padding:8px; background:rgba(243,244,246,0.6); border-radius:6px; font-size:0.85rem;">
+            <strong>Disease Stage:</strong> ${ast.disease_stage || 'N/A'}
+        </div>
+        <div style="padding:8px; background:rgba(243,244,246,0.6); border-radius:6px; font-size:0.85rem;">
+            <strong>Diagnosis Date:</strong> ${ast.diagnosis_date || 'N/A'}
+        </div>
+        <div style="padding:8px; background:rgba(243,244,246,0.6); border-radius:6px; font-size:0.85rem;">
+            <strong>Medications Listed:</strong> ${ast.medications_listed || 'None'}
+        </div>
+        <div style="padding:8px; background:rgba(243,244,246,0.6); border-radius:6px; font-size:0.85rem;">
+            <strong>Key Lab Values:</strong> ${ast.key_lab_values || 'None'}
+        </div>
+    `;
+
+    // Action Bar Setup
+    const firstMatch = (patientApp.match_results && patientApp.match_results[0]) || null;
+    currentSelectedMatchResultId = firstMatch ? firstMatch.id : null;
+
+    document.getElementById('dr-review-notes').value = (firstMatch && firstMatch.doctorReview && firstMatch.doctorReview.doctor_notes) || '';
+
+    modal.style.display = 'block';
+}
+
+// Close Doctor Review Modal
+document.getElementById('close-doctor-review-modal')?.addEventListener('click', () => {
+    document.getElementById('doctor-review-modal').style.display = 'none';
+});
+
+// Decision Buttons Logic
+document.getElementById('dr-btn-approve')?.addEventListener('click', () => handleDoctorDecision('APPROVED'));
+document.getElementById('dr-btn-reject')?.addEventListener('click', () => handleDoctorDecision('REJECTED'));
+document.getElementById('dr-btn-more-info')?.addEventListener('click', () => handleDoctorDecision('MORE_INFO_NEEDED'));
+
+async function handleDoctorDecision(decision) {
+    if (!currentSelectedMatchResultId && currentReviewPatientApp && currentReviewPatientApp.match_results && currentReviewPatientApp.match_results[0]) {
+        currentSelectedMatchResultId = currentReviewPatientApp.match_results[0].id;
+    }
+
+    if (!currentSelectedMatchResultId) {
+        alert('No trial match result associated with this patient to record decision.');
+        return;
+    }
+
+    const notes = document.getElementById('dr-review-notes').value.trim();
+
+    try {
+        const res = await TrialMatchAPI.submitDoctorReview({
+            match_result_id: currentSelectedMatchResultId,
+            doctor_decision: decision,
+            doctor_notes: notes,
+        });
+
+        alert(`Clinician Decision "${decision}" recorded successfully!`);
+        document.getElementById('doctor-review-modal').style.display = 'none';
+        loadDoctorQueue();
+    } catch (err) {
+        alert(`Error submitting decision: ${err.message}`);
+    }
+}
+});
+ // --- END DOMContentLoaded ---

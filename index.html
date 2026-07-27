@@ -478,6 +478,7 @@
                    <div class="doctor-dashboard-tabs">
                         <button class="tab-btn active" data-tab="managed-trials-tab"><i class="fas fa-vials"></i> Managed Trials</button>
                         <button class="tab-btn" data-tab="patient-leads-tab"><i class="fas fa-users"></i> Patient Leads</button>
+                        <button class="tab-btn" data-tab="doctor-queue-tab"><i class="fas fa-user-check"></i> Patient Review Queue</button>
                     </div>
 
                     <div id="managed-trials-tab" class="tab-content active card glass-card">
@@ -489,6 +490,15 @@
                         <h3>Patient Leads</h3>
                         <p>Patients who have saved one of your trials.</p>
                         <div id="patient-leads-container" class="list-container"></div>
+                    </div>
+
+                    <div id="doctor-queue-tab" class="tab-content card glass-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <h3 style="margin:0;"><i class="fas fa-clipboard-check"></i> Patient Applications Queue</h3>
+                            <button id="refresh-doctor-queue-btn" class="btn btn-secondary"><i class="fas fa-sync-alt"></i> Refresh Queue</button>
+                        </div>
+                        <p style="color:#6b7280; font-size:0.9rem;">Review patient applications, AI document extraction summaries, raw scan files, and discrepancy audit flags.</p>
+                        <div id="doctor-queue-container" class="list-container" style="margin-top:20px;"></div>
                     </div>
                 </div>
             </div>
@@ -727,6 +737,70 @@
         <div id="doc-viewer-gallery" class="docs-gallery" style="margin-top: 20px;"></div>
     </div>
 </div>
+
+<!-- Phase 4: 3-Tab Doctor Patient Review Modal -->
+<div id="doctor-review-modal" class="modal">
+    <div class="modal-content glass-card" style="max-width: 950px; width: 95%; max-height: 90vh; overflow-y: auto;">
+        <span class="close-btn close-btn-visible" id="close-doctor-review-modal">&times;</span>
+        <h3 id="dr-modal-patient-name"><i class="fas fa-user-md"></i> Patient Clinical Review</h3>
+        <p id="dr-modal-patient-meta" style="color: #6b7280; font-size: 0.9rem; margin-bottom: 20px;"></p>
+
+        <!-- Modal Nav Tabs -->
+        <div class="doctor-dashboard-tabs" style="margin-bottom: 20px;">
+            <button class="tab-btn active" data-drtab="dr-tab-summary"><i class="fas fa-file-medical-alt"></i> Tab 1: AI Summary</button>
+            <button class="tab-btn" data-drtab="dr-tab-scans"><i class="fas fa-x-ray"></i> Tab 2: Raw Scans & Files</button>
+            <button class="tab-btn" data-drtab="dr-tab-crosscheck"><i class="fas fa-exchange-alt"></i> Tab 3: Cross-Check & Discrepancies</button>
+        </div>
+
+        <!-- Tab 1: AI Evaluation Summary -->
+        <div id="dr-tab-summary" class="dr-tab-content">
+            <div id="dr-summary-cards-container" class="grid grid-2-tight"></div>
+        </div>
+
+        <!-- Tab 2: Raw Uploaded Files & Scans -->
+        <div id="dr-tab-scans" class="dr-tab-content d-none">
+            <!-- STRICT UI RULE: Prominent Clinician Banner -->
+            <div class="raw-scans-banner">
+                <i class="fas fa-exclamation-triangle" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong>Human-in-the-Loop Clinician Notice:</strong> Raw scans are provided for manual clinician review. The AI engine does not interpret radiological scan images (X-ray, ECG, MRI, CT).
+                </div>
+            </div>
+            <div id="dr-scans-gallery" class="docs-gallery" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- Tab 3: Questionnaire & Cross-Check -->
+        <div id="dr-tab-crosscheck" class="dr-tab-content d-none">
+            <div id="dr-discrepancy-alerts-section" style="margin-bottom: 25px;"></div>
+            
+            <div class="side-by-side-grid">
+                <div class="card glass-card" style="padding: 15px;">
+                    <h4 style="color: var(--primary-color); margin-top: 0;"><i class="fas fa-comment-medical"></i> Patient Verbatim Typed Answers</h4>
+                    <div id="dr-verbatim-answers-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;"></div>
+                </div>
+                <div class="card glass-card" style="padding: 15px;">
+                    <h4 style="color: var(--secondary-color); margin-top: 0;"><i class="fas fa-file-invoice"></i> Medical Report Structured Findings</h4>
+                    <div id="dr-report-findings-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Human-in-the-Loop Decision Action Bar -->
+        <div class="doctor-action-bar">
+            <h4 style="margin-top: 0; margin-bottom: 10px;"><i class="fas fa-user-check"></i> Clinician Decision & Override</h4>
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label for="dr-review-notes">Clinician Review Notes / Justification:</label>
+                <textarea id="dr-review-notes" rows="3" placeholder="Enter clinical notes, reasons for override, or additional testing requests..."></textarea>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                <button id="dr-btn-approve" class="btn btn-approve"><i class="fas fa-check-circle"></i> Approve for Trial</button>
+                <button id="dr-btn-more-info" class="btn btn-more-info"><i class="fas fa-question-circle"></i> Request More Info</button>
+                <button id="dr-btn-reject" class="btn btn-reject"><i class="fas fa-times-circle"></i> Reject Application</button>
+            </div>
+        </div>
+    </div>
+</div>
+
   <div id="google_translate_element" style="display:none;"></div>
    <script type="text/javascript">
         function googleTranslateElementInit() {
@@ -740,6 +814,7 @@
     </script>
     <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     
+    <script src="api.js"></script>
     <script src="script.js" defer></script>
 </body>
 </html>
