@@ -181,8 +181,8 @@
     
     <div class="upload-area" id="upload-dropzone">
         <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: var(--primary-color);"></i>
-        <p>Click to Upload Images</p>
-        <input type="file" id="medical-file-input" multiple accept="image/*" style="display: none;">
+        <p>Click or Drag & Drop Medical Reports / Scans (PDF, JPG, PNG)</p>
+        <input type="file" id="medical-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
     </div>
     
     <div id="upload-progress-container" class="d-none" style="margin-top: 10px;">
@@ -735,6 +735,33 @@
         <h3>Patient Documents</h3>
         <p id="doc-viewer-patient-name" style="color: var(--primary-color); font-weight: bold;"></p>
         <div id="doc-viewer-gallery" class="docs-gallery" style="margin-top: 20px;"></div>
+    </div>
+</div>
+
+<!-- Phase 2/3: Dynamic Questionnaire Modal -->
+<div id="dynamic-questionnaire-modal" class="modal">
+    <div class="modal-content glass-card" style="max-width: 700px; width: 92%; max-height: 90vh; overflow-y: auto;">
+        <span class="close-btn close-btn-visible" id="close-dynamic-questionnaire-modal">&times;</span>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 2.5rem; color: var(--primary-color); margin-bottom: 5px;">
+                <i class="fas fa-clipboard-question"></i>
+            </div>
+            <h3 style="margin: 0; color: var(--primary-color);">AI Clinical Screening Questionnaire</h3>
+            <p style="color: #6b7280; font-size: 0.9rem; margin-top: 5px;">
+                Our AI engine analyzed your medical documents and generated these tailored questions. Please answer all questions below to discover matching clinical trials.
+            </p>
+        </div>
+
+        <form id="dynamic-questionnaire-form">
+            <div id="dynamic-questions-container" style="display: flex; flex-direction: column; gap: 18px;">
+                <!-- Questions populated by JS -->
+            </div>
+            <div style="margin-top: 25px; text-align: center;">
+                <button type="submit" id="submit-questionnaire-btn" class="btn btn-primary btn-lg" style="width: 100%; padding: 14px; font-size: 1.1rem;">
+                    <i class="fas fa-paper-plane"></i> Submit & Find Matching Trials
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 

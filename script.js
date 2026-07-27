@@ -2302,5 +2302,336 @@ async function handleDoctorDecision(decision) {
         alert(`Error submitting decision: ${err.message}`);
     }
 }
+// --- Phase 1-5 Frontend Integration: Document Ingestion, Dynamic Questionnaire & AI Trial Matcher ---
+
+let currentIngestionPatientId = localStorage.getItem('trialmatch_patient_id') || null;
+let currentQuestionnaireData = null;
+
+// Initial setup on page load: Hide default trials until ingestion & questionnaire completion
+document.addEventListener('DOMContentLoaded', () => {
+    const trialsContainer = document.getElementById('trials-container');
+    if (trialsContainer && (!currentIngestionPatientId || !localStorage.getItem('trialmatch_matches_completed'))) {
+        trialsContainer.innerHTML = `
+            <div class="card glass-card" style="text-align: center; padding: 40px 20px; color: #4b5563;">
+                <i class="fas fa-file-medical-alt" style="font-size: 3.5rem; color: var(--primary-color); margin-bottom: 15px;"></i>
+                <h3 style="color: var(--primary-color); margin-bottom: 10px;">Upload Medical Reports to Begin Trial Matching</h3>
+                <p style="max-width: 600px; margin: 0 auto 20px auto; font-size: 0.95rem; line-height: 1.6;">
+                    Upload your prescriptions, diagnostic reports, or medical files in the dropzone above. Our AI engine (Google Gemini 3.6 Flash & Groq Llama 3.3) will analyze your documents, generate a dynamic screening questionnaire, and match you with relevant clinical trials.
+                </p>
+                <button id="scroll-to-upload-btn" class="btn btn-primary" onclick="document.getElementById('medical-history-section')?.scrollIntoView({behavior: 'smooth'})">
+                    <i class="fas fa-cloud-upload-alt"></i> Upload Medical Document Now
+                </button>
+            </div>
+        `;
+    }
 });
- // --- END DOMContentLoaded ---
+
+// Dropzone and File Input Event Listeners
+const dropzone = document.getElementById('upload-dropzone');
+const fileInput = document.getElementById('medical-file-input');
+
+if (dropzone && fileInput) {
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = 'var(--primary-color)';
+        dropzone.style.background = 'rgba(139, 92, 246, 0.1)';
+    });
+
+    dropzone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = '#ccc';
+        dropzone.style.background = 'transparent';
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = '#ccc';
+        dropzone.style.background = 'transparent';
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFileUpload(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+}
+
+// File Upload Handler (Connects Dropzone -> Express API Ingestion Pipeline)
+async function handleFileUpload(file) {
+    const progressContainer = document.getElementById('upload-progress-container');
+    const progressBar = document.getElementById('upload-progress-bar');
+    const statusText = document.getElementById('upload-status-text');
+
+    try {
+        // Client-side file size and extension validation
+        const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png'];
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        if (!allowedExts.includes(ext)) {
+            alert('Invalid file format. Please upload a PDF, JPG, or PNG document.');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File size exceeds the 10MB limit per document.');
+            return;
+        }
+
+        // Show progress UI
+        if (progressContainer) progressContainer.classList.remove('d-none');
+        if (progressBar) progressBar.style.width = '20%';
+        if (statusText) statusText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Step 1/3: Registering patient & uploading document...';
+
+        // Register/ensure patient ID in backend DB
+        if (!currentIngestionPatientId) {
+            const registered = await TrialMatchAPI.registerPatient({
+                full_name: (typeof userProfile !== 'undefined' && userProfile?.name) || 'Patient User',
+                age: (typeof userProfile !== 'undefined' && userProfile?.age) ? parseInt(userProfile.age) : 45,
+                gender: 'MALE',
+                location: (typeof userProfile !== 'undefined' && userProfile?.location) || 'Chicago, IL',
+            });
+            currentIngestionPatientId = registered.data.id;
+            localStorage.setItem('trialmatch_patient_id', currentIngestionPatientId);
+        }
+
+        // 1. Upload File
+        await TrialMatchAPI.uploadPatientDocument(currentIngestionPatientId, file);
+        if (progressBar) progressBar.style.width = '55%';
+        if (statusText) statusText.innerHTML = '<i class="fas fa-brain fa-spin"></i> Step 2/3: Analyzing document with OCR & Google Gemini 3.6 Flash...';
+
+        // 2. Assess Document & Generate Dynamic Questionnaire
+        await TrialMatchAPI.assessPatientDocuments(currentIngestionPatientId);
+        if (progressBar) progressBar.style.width = '85%';
+        if (statusText) statusText.innerHTML = '<i class="fas fa-magic fa-spin"></i> Step 3/3: Fetching dynamic Groq screening questionnaire...';
+
+        // 3. Fetch Questionnaire Data
+        const qRes = await TrialMatchAPI.getPatientQuestionnaire(currentIngestionPatientId);
+        if (progressBar) progressBar.style.width = '100%';
+
+        setTimeout(() => {
+            if (progressContainer) progressContainer.classList.add('d-none');
+            // Display uploaded document in gallery
+            renderUploadedDocumentItem(file.name, ext);
+            // Open Dynamic Questionnaire Modal
+            openDynamicQuestionnaireModal(qRes.data);
+        }, 500);
+
+    } catch (err) {
+        console.error('File Upload Ingestion Error:', err);
+        if (progressContainer) progressContainer.classList.add('d-none');
+        alert(`Ingestion Pipeline Error: ${err.message}`);
+    }
+}
+
+// Render uploaded document thumbnail in gallery
+function renderUploadedDocumentItem(fileName, ext) {
+    const gallery = document.getElementById('medical-docs-gallery');
+    if (!gallery) return;
+    const isImg = ['.jpg', '.jpeg', '.png'].includes(ext);
+    const item = document.createElement('div');
+    item.className = 'doc-item';
+    item.style.cssText = 'border:1px solid #ddd; padding:10px; border-radius:8px; display:inline-block; margin-right:10px; margin-bottom:10px; text-align:center; max-width:140px;';
+    item.innerHTML = `
+        <div style="font-size:2.5rem; color:var(--primary-color);"><i class="fas ${isImg ? 'fa-file-image' : 'fa-file-pdf'}"></i></div>
+        <div style="font-size:0.8rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:5px;">${fileName}</div>
+        <span class="tag tag-condition" style="font-size:0.7rem; margin-top:4px;">Processed</span>
+    `;
+    gallery.appendChild(item);
+}
+
+// Open Dynamic Questionnaire Modal
+function openDynamicQuestionnaireModal(questionnaireData) {
+    currentQuestionnaireData = questionnaireData;
+    const modal = document.getElementById('dynamic-questionnaire-modal');
+    const container = document.getElementById('dynamic-questions-container');
+    if (!modal || !container) return;
+
+    let questions = [];
+    try {
+        questions = typeof questionnaireData.questions === 'string' ? JSON.parse(questionnaireData.questions) : questionnaireData.questions;
+    } catch (e) {
+        questions = [
+            "What condition do you believe you have?",
+            "What active physical symptoms are you currently experiencing?",
+            "How long have you been experiencing these symptoms?",
+            "Are you currently taking any prescription medications?",
+            "Have you participated in clinical trials previously?"
+        ];
+    }
+
+    container.innerHTML = questions.map((q, idx) => `
+        <div class="form-group" style="background: rgba(243, 244, 246, 0.7); padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-color);">
+            <label style="font-weight: 600; color: var(--primary-color); font-size: 0.95rem; display: block; margin-bottom: 8px;">
+                Question ${idx + 1}: ${q} ${idx === 0 ? '<span style="color:red">*</span>' : ''}
+            </label>
+            <input type="text" class="questionnaire-input" data-question="${encodeURIComponent(q)}" 
+                   placeholder="Type your answer here..." required 
+                   style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem;" />
+        </div>
+    `).join('');
+
+    modal.style.display = 'block';
+}
+
+// Close Dynamic Questionnaire Modal Listener
+document.getElementById('close-dynamic-questionnaire-modal')?.addEventListener('click', () => {
+    document.getElementById('dynamic-questionnaire-modal').style.display = 'none';
+});
+
+// Dynamic Questionnaire Form Submit Handler
+document.getElementById('dynamic-questionnaire-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentIngestionPatientId) {
+        alert('Patient session error. Please upload a document first.');
+        return;
+    }
+
+    const submitBtn = document.getElementById('submit-questionnaire-btn');
+    const originalBtnText = submitBtn.innerHTML;
+
+    // Collect answers
+    const answersObj = {};
+    let missingAnswer = false;
+
+    document.querySelectorAll('.questionnaire-input').forEach(input => {
+        const question = decodeURIComponent(input.getAttribute('data-question'));
+        const answer = input.value.trim();
+        if (!answer) {
+            missingAnswer = true;
+        }
+        answersObj[question] = answer;
+    });
+
+    if (missingAnswer) {
+        alert('Please provide a valid answer for all screening questions before submitting.');
+        return;
+    }
+
+    try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Groq AI Matching Engine...';
+
+        // 1. Submit Questionnaire
+        await TrialMatchAPI.submitQuestionnaire(currentIngestionPatientId, answersObj);
+
+        // 2. Run AI Cross-Validation
+        await TrialMatchAPI.crossValidate(currentIngestionPatientId);
+
+        // 3. Run Two-Stage Trial Matching Engine
+        const matchRes = await TrialMatchAPI.findTrials(currentIngestionPatientId);
+
+        // Save completion flag
+        localStorage.setItem('trialmatch_matches_completed', 'true');
+
+        // Hide Questionnaire Modal
+        document.getElementById('dynamic-questionnaire-modal').style.display = 'none';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+
+        // Render Live AI Match Cards
+        renderLiveMatchedTrials(matchRes.data);
+
+        // Scroll smoothly to trials container
+        document.getElementById('app-interface')?.scrollIntoView({ behavior: 'smooth' });
+
+    } catch (err) {
+        console.error('Questionnaire Submission & Matching Error:', err);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+        alert(`Matching Error: ${err.message}`);
+    }
+});
+
+// Render Live AI Matched Trials into #trials-container
+function renderLiveMatchedTrials(matchData) {
+    const trialsContainer = document.getElementById('trials-container');
+    if (!trialsContainer) return;
+
+    const eligible = (matchData && matchData.eligible) || [];
+    const lessEligible = (matchData && matchData.less_eligible) || [];
+
+    if (eligible.length === 0 && lessEligible.length === 0) {
+        trialsContainer.innerHTML = `
+            <div class="card glass-card" style="text-align: center; padding: 30px; color: #6b7280;">
+                <i class="fas fa-exclamation-circle" style="font-size: 2.5rem; color: #f59e0b; margin-bottom: 10px;"></i>
+                <h3>No Matching Trials Found</h3>
+                <p>Based on your document evaluation and criteria check, no active trials match your current profile.</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+        <div style="margin-bottom: 25px; padding: 15px; background: rgba(238, 242, 255, 0.8); border-radius: 8px; border-left: 5px solid var(--primary-color);">
+            <h3 style="margin: 0; color: var(--primary-color); display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-check-circle" style="color: #10b981;"></i> Two-Stage AI Matching Complete
+            </h3>
+            <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #4b5563;">
+                Found <strong>${eligible.length} Eligible</strong> and <strong>${lessEligible.length} Moderately Eligible</strong> trial(s) based on criterion-level evaluation.
+            </p>
+        </div>
+    `;
+
+    // Render Eligible Trials
+    if (eligible.length > 0) {
+        html += `<h3 style="color: #10b981; margin-bottom: 15px;"><i class="fas fa-star"></i> Eligible Clinical Trials (${eligible.length})</h3>`;
+        html += eligible.map(m => createMatchedTrialCardHtml(m, 'ELIGIBLE')).join('');
+    }
+
+    // Render Less Eligible Trials
+    if (lessEligible.length > 0) {
+        html += `<h3 style="color: #f59e0b; margin-top: 30px; margin-bottom: 15px;"><i class="fas fa-exclamation-triangle"></i> Moderately Eligible / Requires Review (${lessEligible.length})</h3>`;
+        html += lessEligible.map(m => createMatchedTrialCardHtml(m, 'LESS_ELIGIBLE')).join('');
+    }
+
+    trialsContainer.innerHTML = html;
+}
+
+// Generate HTML for individual matched trial card
+function createMatchedTrialCardHtml(matchItem, category) {
+    const trial = matchItem.trial || {};
+    const rankScore = matchItem.rank_score || 50;
+    const explanation = matchItem.criterion_explanation || 'Evaluation completed.';
+    const isEligible = category === 'ELIGIBLE';
+
+    return `
+        <div class="trial-card glass-card" style="margin-bottom: 20px; padding: 22px; border-left: 5px solid ${isEligible ? '#10b981' : '#f59e0b'};">
+            <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <h3 style="margin: 0; color: var(--primary-color);">${trial.title || 'Clinical Trial'}</h3>
+                    <span style="font-size: 0.85rem; color: #6b7280;">Trial Code: ${trial.trial_code || 'N/A'} | Phase: ${trial.phase || 'N/A'}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="flag-badge ${isEligible ? 'flag-low' : 'flag-medium'}" style="font-size: 0.85rem; padding: 6px 12px;">
+                        ${isEligible ? '<i class="fas fa-check"></i> ELIGIBLE' : '<i class="fas fa-info-circle"></i> MODERATE MATCH'}
+                    </span>
+                    <span style="background: var(--primary-color); color: white; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem;">
+                        Score: ${rankScore}/100
+                    </span>
+                </div>
+            </div>
+
+            <div class="tags-container" style="margin-bottom: 15px;">
+                <span class="tag tag-condition"><i class="fas fa-notes-medical"></i> ${trial.disease_category || 'General'}</span>
+                <span class="tag tag-location"><i class="fas fa-map-marker-alt"></i> ${trial.location || 'Multi-center'}</span>
+                <span class="tag" style="background: rgba(139, 92, 246, 0.1); color: var(--primary-color);"><i class="fas fa-users"></i> Age: ${trial.min_age || 18} - ${trial.max_age || 80} yrs</span>
+            </div>
+
+            <div style="background: rgba(243, 244, 246, 0.7); padding: 12px; border-radius: 6px; font-size: 0.9rem; line-height: 1.5; margin-bottom: 15px;">
+                <strong style="color: var(--primary-color);"><i class="fas fa-brain"></i> AI Criterion Evaluation & Explanation:</strong>
+                <p style="margin: 4px 0 0 0; color: #374151;">${explanation}</p>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary btn-sm" onclick="alert('Trial details & contact protocol available in doctor review queue.')">
+                    <i class="fas fa-info-circle"></i> View Details
+                </button>
+            </div>
+        </div>
+    `;
+}
+});
+ // --- END DOMContentLoaded ---
