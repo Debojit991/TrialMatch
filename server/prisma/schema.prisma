@@ -1,12 +1,13 @@
-// Prisma schema for TrialMatch Complete Platform (Phases 1-4)
+// Prisma schema for TrialMatch Complete Platform (Supabase PostgreSQL)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Patient {
@@ -32,7 +33,7 @@ model Document {
   file_type          String
   file_size          Int
   upload_status      String   @default("PENDING") // PENDING, COMPLETED, FAILED
-  ocr_extracted_text String?
+  ocr_extracted_text String?  @db.Text
   created_at         DateTime @default(now())
 }
 
@@ -43,9 +44,9 @@ model DocumentAssessment {
   suspected_condition String?
   disease_stage       String?
   diagnosis_date      String?
-  medications_listed  String   // JSON string array
-  key_lab_values      String   // JSON object string or serialized text
-  raw_summary         String
+  medications_listed  String   @db.Text // JSON string array
+  key_lab_values      String   @db.Text // JSON object string or serialized text
+  raw_summary         String   @db.Text
   created_at          DateTime @default(now())
 }
 
@@ -53,8 +54,8 @@ model PatientQuestionnaire {
   id               String    @id @default(uuid())
   patient_id       String
   patient          Patient   @relation(fields: [patient_id], references: [id], onDelete: Cascade)
-  questions        String    // JSON string array of generated questions
-  verbatim_answers String?   // JSON object mapping question -> answer
+  questions        String    @db.Text // JSON string array of generated questions
+  verbatim_answers String?   @db.Text // JSON object mapping question -> answer
   is_completed     Boolean   @default(false)
   created_at       DateTime  @default(now())
   completed_at     DateTime?
@@ -66,8 +67,8 @@ model DiscrepancyFlag {
   patient           Patient  @relation(fields: [patient_id], references: [id], onDelete: Cascade)
   severity_level    String   // "LOW", "MEDIUM", "HIGH"
   conflict_topic    String   // e.g., "Primary Diagnosis", "Medication Mismatch", "Symptom Severity"
-  document_evidence String
-  patient_claim     String
+  document_evidence String   @db.Text
+  patient_claim     String   @db.Text
   created_at        DateTime @default(now())
 }
 
@@ -81,8 +82,8 @@ model ClinicalTrial {
   max_age            Int
   gender_requirement String               // "ALL", "MALE", "FEMALE"
   location           String
-  inclusion_criteria String               // JSON string array of inclusion statements
-  exclusion_criteria String               // JSON string array of exclusion statements
+  inclusion_criteria String               @db.Text // JSON string array of inclusion statements
+  exclusion_criteria String               @db.Text // JSON string array of exclusion statements
   status             String               @default("RECRUITING")
   created_at         DateTime             @default(now())
   match_results      PatientMatchResult[]
@@ -96,7 +97,7 @@ model PatientMatchResult {
   trial                 ClinicalTrial @relation(fields: [trial_id], references: [id], onDelete: Cascade)
   eligibility_category  String        // "ELIGIBLE" or "LESS_ELIGIBLE"
   rank_score            Int           // 1 to 100 ranking score
-  criterion_explanation String        // Detailed criterion-by-criterion explanation
+  criterion_explanation String        @db.Text // Detailed criterion-by-criterion explanation
   created_at            DateTime      @default(now())
   doctorReview          DoctorReview?
 }
@@ -106,6 +107,6 @@ model DoctorReview {
   match_result_id String             @unique
   match_result    PatientMatchResult @relation(fields: [match_result_id], references: [id], onDelete: Cascade)
   doctor_decision String             // "APPROVED", "REJECTED", "MORE_INFO_NEEDED"
-  doctor_notes    String?
+  doctor_notes    String?            @db.Text
   reviewed_at     DateTime           @default(now())
 }
