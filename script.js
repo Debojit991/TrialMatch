@@ -703,62 +703,6 @@ const renderTrials = (trialsToRender) => {
             `;
             card.classList.remove('d-none');
         };
-        // --- MEDICAL DOCS LOGIC (CLOUDINARY) ---
-const handleFileUpload = async (e) => {
-    // 1. YOUR KEYS HERE
-    const cloudName = "dndzrwnhm"; 
-    const uploadPreset = "ml_default"; 
-
-    const files = e.target.files;
-    if (!files.length) return;
-
-    const progressBar = document.getElementById('upload-progress-bar');
-    const statusText = document.getElementById('upload-status-text');
-    document.getElementById('upload-progress-container').classList.remove('d-none');
-
-    let completed = 0;
-    const total = files.length;
-
-    for (let i = 0; i < total; i++) {
-        const file = files[i];
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', uploadPreset);
-
-        try {
-            statusText.innerText = `Uploading ${i+1}/${total}...`;
-            
-            // Upload to Cloudinary
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-                method: 'POST', body: formData
-            });
-            const data = await res.json();
-            
-            if (!data.secure_url) throw new Error("Upload failed");
-
-            // Save Link to Firestore ONLY (The listener will update the UI)
-            const docData = { url: data.secure_url, name: file.name };
-            await db.collection('users').doc(currentUser.uid).update({
-                medicalDocuments: firebase.firestore.FieldValue.arrayUnion(docData)
-            });
-
-            // --- REMOVED MANUAL PUSH TO PREVENT DUPLICATES ---
-            
-            completed++;
-            progressBar.style.width = `${(completed / total) * 100}%`;
-
-        } catch (err) {
-            console.error(err);
-            alert("Upload failed. Check Cloud Name/Preset.");
-        }
-    }
-
-    setTimeout(() => {
-        document.getElementById('upload-progress-container').classList.add('d-none');
-        progressBar.style.width = '0%';
-        // renderMedicalDocs(); // <-- REMOVED (Listener handles it now)
-    }, 1000);
-};
 const renderMedicalDocs = () => {
     const gallery = document.getElementById('medical-docs-gallery');
     gallery.innerHTML = '';
@@ -1963,12 +1907,6 @@ const openTrialDetails = (trialId) => {
             alert('Error posting answer.');
         }
     });
-       // Upload Listener
-const uploadArea = document.getElementById('upload-dropzone');
-if(uploadArea) {
-    uploadArea.addEventListener('click', () => document.getElementById('medical-file-input').click());
-    document.getElementById('medical-file-input').addEventListener('change', handleFileUpload);
-}
 
 // --- STEP D: NEW EVENT LISTENERS (For Selective Sharing & No Docs) ---
 
