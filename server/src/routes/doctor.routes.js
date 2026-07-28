@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../db');
+const { generateSignedUrl } = require('../services/storage.service');
+const path = require('path');
 
 // GET /api/doctors/applications - Fetch all patient applications for clinician review queue
 router.get('/applications', async (req, res, next) => {
@@ -45,7 +47,10 @@ router.get('/applications', async (req, res, next) => {
         gender: p.gender,
         location: p.location,
         created_at: p.created_at,
-        documents: p.documents,
+        documents: p.documents.map((d) => ({
+          ...d,
+          signed_url: generateSignedUrl(path.basename(d.file_url), req.get('host')),
+        })),
         document_assessment: p.documentAssessment,
         questionnaire: activeQuestionnaire
           ? {

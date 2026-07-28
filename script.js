@@ -2118,22 +2118,45 @@ function openDoctorReviewModal(patientApp) {
     if (docs.length === 0) {
         scansGallery.innerHTML = '<p style="color:#6b7280;">No raw files uploaded by patient.</p>';
     } else {
-        scansGallery.innerHTML = docs.map(d => {
+        scansGallery.innerHTML = '';
+        docs.forEach(d => {
             const isImage = ['jpg', 'jpeg', 'png'].includes(d.file_type.toLowerCase());
             let fileUrl = d.signed_url || d.file_url || '';
             if (fileUrl && !fileUrl.startsWith('http://') && !fileUrl.startsWith('https://')) {
                 fileUrl = `${backendOrigin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
             }
 
-            return `
-                <div class="doc-item" style="border:1px solid #ddd; padding:12px; border-radius:8px; background:rgba(255,255,255,0.9);">
-                    ${isImage ? `<img src="${fileUrl}" style="max-height:160px; object-fit:cover; width:100%; border-radius:6px; margin-bottom:8px; cursor:pointer;" onerror="this.onerror=null; this.src='https://placehold.co/300x200/e2e8f0/475569?text=Scan+Document+Preview';" onclick="window.open('${fileUrl}')">` : `<div style="text-align:center; font-size:3.5rem; color:var(--primary-color); margin-bottom:8px;"><i class="fas fa-file-pdf"></i></div>`}
-                    <div style="font-weight:600; font-size:0.85rem; margin-top:5px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${d.file_name}</div>
-                    <div style="font-size:0.75rem; color:#6b7280; margin-top:2px;">Size: ${(d.file_size / 1024).toFixed(1)} KB</div>
-                    <a href="${fileUrl}" target="_blank" class="btn btn-secondary btn-sm" style="margin-top:8px; width:100%; text-align:center; display:block; padding:6px;"><i class="fas fa-external-link-alt"></i> View Raw Document</a>
-                </div>
+            const docItem = document.createElement('div');
+            docItem.className = 'doc-item';
+            docItem.style.cssText = 'border:1px solid #ddd; padding:12px; border-radius:8px; background:rgba(255,255,255,0.9);';
+            
+            if (isImage) {
+                const img = document.createElement('img');
+                img.src = fileUrl;
+                img.style.cssText = 'max-height:160px; object-fit:cover; width:100%; border-radius:6px; margin-bottom:8px; cursor:pointer;';
+                img.addEventListener('error', () => {
+                    img.src = 'https://placehold.co/300x200/e2e8f0/475569?text=Scan+Document+Preview';
+                });
+                img.addEventListener('click', () => {
+                    window.open(fileUrl, '_blank');
+                });
+                docItem.appendChild(img);
+            } else {
+                const pdfDiv = document.createElement('div');
+                pdfDiv.style.cssText = 'text-align:center; font-size:3.5rem; color:var(--primary-color); margin-bottom:8px;';
+                pdfDiv.innerHTML = '<i class="fas fa-file-pdf"></i>';
+                docItem.appendChild(pdfDiv);
+            }
+
+            const infoDiv = document.createElement('div');
+            infoDiv.innerHTML = `
+                <div style="font-weight:600; font-size:0.85rem; margin-top:5px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${d.file_name}</div>
+                <div style="font-size:0.75rem; color:#6b7280; margin-top:2px;">Size: ${(d.file_size / 1024).toFixed(1)} KB</div>
+                <a href="${fileUrl}" target="_blank" class="btn btn-secondary btn-sm" style="margin-top:8px; width:100%; text-align:center; display:block; padding:6px;"><i class="fas fa-external-link-alt"></i> View Raw Document</a>
             `;
-        }).join('');
+            docItem.appendChild(infoDiv);
+            scansGallery.appendChild(docItem);
+        });
     }
 
     // TAB 3: Cross-Check & Discrepancies
@@ -2253,6 +2276,39 @@ let currentIngestionPatientId = localStorage.getItem('trialmatch_patient_id') ||
 let currentQuestionnaireData = null;
 
 // Patient Session & State Persistence Lifecycle
+function resetSessionToUploadState() {
+    localStorage.removeItem('trialmatch_patient_id');
+    localStorage.removeItem('trialmatch_matches_completed');
+    currentIngestionPatientId = null;
+
+    // Reset gallery
+    const gallery = document.getElementById('medical-docs-gallery');
+    if (gallery) {
+        gallery.innerHTML = '<p style="color:#888; width:100%;">No documents uploaded.</p>';
+    }
+
+    // Close any questionnaire modal
+    const modal = document.getElementById('dynamic-questionnaire-modal');
+    if (modal) modal.style.display = 'none';
+
+    // Reset trials container to default upload prompt
+    const trialsContainer = document.getElementById('trials-container');
+    if (trialsContainer) {
+        trialsContainer.innerHTML = `
+            <div class="card glass-card" style="text-align: center; padding: 40px 20px; color: #4b5563;">
+                <i class="fas fa-file-medical-alt" style="font-size: 3.5rem; color: var(--primary-color); margin-bottom: 15px;"></i>
+                <h3 style="color: var(--primary-color); margin-bottom: 10px;">Upload Medical Reports to Begin Trial Matching</h3>
+                <p style="max-width: 600px; margin: 0 auto 20px auto; font-size: 0.95rem; line-height: 1.6;">
+                    Upload your prescriptions, diagnostic reports, or medical files in the dropzone above. Our AI engine (Google Gemini 3.6 Flash & Groq Llama 3.3) will analyze your documents, generate a dynamic screening questionnaire, and match you with relevant clinical trials.
+                </p>
+                <button id="scroll-to-upload-btn" class="btn btn-primary" onclick="document.getElementById('medical-history-section')?.scrollIntoView({behavior: 'smooth'})">
+                    <i class="fas fa-cloud-upload-alt"></i> Upload Medical Document Now
+                </button>
+            </div>
+        `;
+    }
+}
+
 async function restorePatientSessionState() {
     currentIngestionPatientId = localStorage.getItem('trialmatch_patient_id') || null;
     if (!currentIngestionPatientId) return;
@@ -2298,16 +2354,13 @@ async function restorePatientSessionState() {
                     openDynamicQuestionnaireModal(qRes.data);
                 }
             } catch (qErr) {
-                console.log('No pending questionnaire found for active patient session.');
+                console.log('No pending questionnaire found for active patient session:', qErr.message);
+                resetSessionToUploadState();
             }
         }
     } catch (err) {
         console.error('restorePatientSessionState Error:', err);
-        if (err.message && err.message.toLowerCase().includes('not found')) {
-            localStorage.removeItem('trialmatch_patient_id');
-            localStorage.removeItem('trialmatch_matches_completed');
-            currentIngestionPatientId = null;
-        }
+        resetSessionToUploadState();
     }
 }
 
@@ -2438,8 +2491,17 @@ async function handleFileUpload(file) {
 
     } catch (err) {
         console.error('File Upload Ingestion Error:', err);
+        let msg = err.message || 'An unexpected error occurred during document processing.';
+        if (msg.includes('404')) {
+            msg = 'Endpoint not found (404). Please ensure the backend server is running and configured correctly.';
+        } else if (msg.includes('500') || msg.includes('502')) {
+            msg = 'Server error (500/502). The document processing engine encountered an internal failure. Please try again.';
+        } else if (msg.includes('Failed to fetch') || msg.includes('network')) {
+            msg = 'Network connection failed. Please check your internet connection and backend server status.';
+        }
+        alert(`Ingestion Pipeline Error: ${msg}`);
+    } finally {
         if (progressContainer) progressContainer.classList.add('d-none');
-        alert(`Ingestion Pipeline Error: ${err.message}`);
     }
 }
 
@@ -2455,9 +2517,35 @@ function renderUploadedDocumentItem(fileName, ext, fileUrl = '') {
         <div style="font-size:2.5rem; color:var(--primary-color);"><i class="fas ${isImg ? 'fa-file-image' : 'fa-file-pdf'}"></i></div>
         <div style="font-size:0.8rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:5px;" title="${fileName}">${fileName}</div>
         <span class="tag tag-condition" style="font-size:0.7rem; margin-top:4px; display:inline-block;">Processed</span>
-        ${fileUrl ? `<a href="${fileUrl}" target="_blank" class="btn btn-secondary btn-sm" style="margin-top:6px; font-size:0.75rem; padding:4px 8px; width:100%; display:block;"><i class="fas fa-external-link-alt"></i> View Document</a>` : ''}
+        <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+            ${fileUrl ? `<a href="${fileUrl}" target="_blank" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:4px 8px; width:100%; display:block;"><i class="fas fa-external-link-alt"></i> View Document</a>` : ''}
+            <button class="btn btn-danger btn-sm reset-session-btn" style="font-size:0.75rem; padding:4px 8px; width:100%; display:block;"><i class="fas fa-trash-alt"></i> Delete / Start Over</button>
+        </div>
     `;
     gallery.appendChild(item);
+
+    const btn = item.querySelector('.reset-session-btn');
+    if (btn) {
+        btn.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to delete your uploaded medical history, questionnaire answers, and matched trials, and start over?')) {
+                const spinner = document.createElement('i');
+                spinner.className = 'fas fa-spinner fa-spin';
+                spinner.style.marginRight = '5px';
+                btn.disabled = true;
+                btn.prepend(spinner);
+                try {
+                    if (currentIngestionPatientId) {
+                        await TrialMatchAPI.deletePatient(currentIngestionPatientId);
+                    }
+                } catch (err) {
+                    console.error('Error deleting patient profile:', err);
+                    alert(`Failed to delete session on server: ${err.message}`);
+                } finally {
+                    resetSessionToUploadState();
+                }
+            }
+        });
+    }
 }
 
 // Open Dynamic Questionnaire Modal with Draft Persistence
@@ -2574,8 +2662,6 @@ document.getElementById('dynamic-questionnaire-form')?.addEventListener('submit'
 
         // Hide Questionnaire Modal
         document.getElementById('dynamic-questionnaire-modal').style.display = 'none';
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalBtnText;
 
         // Render Live AI Match Cards
         renderLiveMatchedTrials(matchRes.data);
@@ -2585,9 +2671,18 @@ document.getElementById('dynamic-questionnaire-form')?.addEventListener('submit'
 
     } catch (err) {
         console.error('Questionnaire Submission & Matching Error:', err);
+        let msg = err.message || 'An unexpected error occurred during questionnaire submission.';
+        if (msg.includes('404')) {
+            msg = 'Active session or questionnaire endpoint not found (404). Please restart the session.';
+        } else if (msg.includes('500') || msg.includes('502')) {
+            msg = 'Server error (500/502). The AI matching engine encountered an internal error. Please try again.';
+        } else if (msg.includes('Failed to fetch') || msg.includes('network')) {
+            msg = 'Network connection failed. Please check your network connectivity.';
+        }
+        alert(`Matching Error: ${msg}`);
+    } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalBtnText;
-        alert(`Matching Error: ${err.message}`);
     }
 });
 
@@ -2666,7 +2761,7 @@ function createMatchedTrialCardHtml(matchItem, category) {
                 <span class="tag" style="background: rgba(139, 92, 246, 0.1); color: var(--primary-color);"><i class="fas fa-users"></i> Age: ${trial.min_age || 18} - ${trial.max_age || 80} yrs</span>
             </div>
 
-            <div style="background: rgba(243, 244, 246, 0.7); padding: 12px; border-radius: 6px; font-size: 0.9rem; line-height: 1.5; margin-bottom: 15px;">
+            <div class="ai-criterion-explanation">
                 <strong style="color: var(--primary-color);"><i class="fas fa-brain"></i> AI Criterion Evaluation & Explanation:</strong>
                 <p style="margin: 4px 0 0 0; color: #374151;">${explanation}</p>
             </div>

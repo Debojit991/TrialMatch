@@ -2,7 +2,8 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
-const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production';
+const UPLOADS_DIR = isVercel ? '/tmp' : path.join(__dirname, '../../uploads');
 
 // Ensure uploads directory exists (wrapped in try-catch for read-only environments like Vercel)
 try {

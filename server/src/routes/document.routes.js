@@ -65,6 +65,14 @@ router.post('/patients/:patientId/documents', upload.single('document'), async (
     const reqHost = req.get('host');
     const signedUrl = generateSignedUrl(filename, reqHost);
 
+    // Write buffer to UPLOADS_DIR to support file streaming previews
+    try {
+      const filePath = path.join(UPLOADS_DIR, filename);
+      fs.writeFileSync(filePath, req.file.buffer);
+    } catch (writeErr) {
+      console.error('Error writing file to uploads directory:', writeErr);
+    }
+
     // Initial database record with PENDING upload status
     const docRecord = await prisma.document.create({
       data: {
