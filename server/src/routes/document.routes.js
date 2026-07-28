@@ -85,11 +85,11 @@ router.post('/patients/:patientId/documents', upload.single('document'), async (
       },
     });
 
-    // Run OCR text extraction
+    // Run OCR text extraction via Gemini Vision API
     let ocrText = null;
     let status = 'COMPLETED';
     try {
-      ocrText = await extractTextFromDocument(req.file.buffer, fileExt);
+      ocrText = await extractTextFromDocument(req.file.buffer, req.file.mimetype || fileExt);
     } catch (ocrErr) {
       console.error('OCR Processing error:', ocrErr);
       status = 'FAILED';
