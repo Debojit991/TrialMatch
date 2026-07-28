@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const prisma = require('../db');
-const { UPLOADS_DIR, generateSignedUrl, verifySignedUrl } = require('../services/storage.service');
+const { UPLOADS_DIR, uploadToCloudinary, generateSignedUrl, verifySignedUrl } = require('../services/storage.service');
 const { extractTextFromDocument } = require('../services/ocr.service');
 
 // Configure Multer storage using Memory Storage (for serverless environments)
@@ -73,12 +73,20 @@ router.post('/patients/:patientId/documents', upload.single('document'), async (
       console.error('Error writing file to uploads directory:', writeErr);
     }
 
+    // Safely attempt Cloudinary stream upload if credentials are provided
+    let cloudResult = { secure_url: null };
+    try {
+      cloudResult = await uploadToCloudinary(req.file.buffer, 'patient_documents');
+    } catch (cloudErr) {
+      console.warn('Cloudinary upload stream skipped/failed:', cloudErr.message);
+    }
+
     // Initial database record with PENDING upload status
     const docRecord = await prisma.document.create({
       data: {
         patient_id: patientId,
         file_name: req.file.originalname,
-        file_url: `/api/documents/file/${filename}`,
+        file_url: cloudResult.secure_url || `/api/documents/file/${filename}`,
         file_type: fileExt,
         file_size: req.file.size,
         upload_status: 'PENDING',
