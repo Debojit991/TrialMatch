@@ -122,7 +122,9 @@ const langMap = {
     'en': 'en-US',
     'bn': 'bn-IN',
     'mr': 'mr-IN',
-    'ta': 'ta-IN'
+    'ta': 'ta-IN',
+    'hi': 'hi-IN',
+    'ru': 'ru-RU'
 };
 
 if (SpeechRecognition) {
