@@ -18,10 +18,35 @@ const app = express();
 // 1. Security Headers (Helmet)
 app.use(helmet());
 
-// 2. HTTP Request Logging (Morgan)
+// 2. CORS Middleware Configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'http://127.0.0.1:3000',
+  'https://trial-match-z182.vercel.app',
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+      return callback(new Error('CORS Policy Error: Origin not allowed'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    credentials: true,
+  })
+);
+app.options('*', cors());
+
+// 3. HTTP Request Logging (Morgan)
 app.use(morgan('combined'));
 
-// 3. Global Rate Limiting (100 requests per 15 minutes per IP)
+// 4. Global Rate Limiting (100 requests per 15 minutes per IP)
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -34,7 +59,7 @@ const globalLimiter = rateLimit({
 });
 app.use('/api', globalLimiter);
 
-// 4. Stricter AI Rate Limiter for Heavy AI Endpoints (10 requests per 1 minute per IP)
+// 5. Stricter AI Rate Limiter for Heavy AI Endpoints (10 requests per 1 minute per IP)
 const aiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 10,
@@ -49,8 +74,7 @@ app.use('/api/patients/:patientId/assess-documents', aiLimiter);
 app.use('/api/patients/:patientId/find-trials', aiLimiter);
 app.use('/api/patients/:patientId/cross-validate', aiLimiter);
 
-// 5. Body Parsing & XSS Sanitization
-app.use(cors());
+// 6. Body Parsing & XSS Sanitization
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(xss());
