@@ -4,9 +4,13 @@ const crypto = require('crypto');
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
-// Ensure uploads directory exists
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+// Ensure uploads directory exists (wrapped in try-catch for read-only environments like Vercel)
+try {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  }
+} catch (err) {
+  console.warn(`Warning: Could not create uploads directory at ${UPLOADS_DIR}:`, err.message);
 }
 
 // Generate a secure signed URL for accessing uploaded documents

@@ -7,17 +7,8 @@ const prisma = require('../db');
 const { UPLOADS_DIR, generateSignedUrl, verifySignedUrl } = require('../services/storage.service');
 const { extractTextFromDocument } = require('../services/ocr.service');
 
-// Configure Multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOADS_DIR);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `doc-${uniqueSuffix}${ext}`);
-  },
-});
+// Configure Multer storage using Memory Storage (for serverless environments)
+const storage = multer.memoryStorage();
 
 // Multer file filter enforcing strictly .pdf, .jpg, .jpeg, .png
 const fileFilter = (req, file, cb) => {
@@ -55,9 +46,6 @@ router.post('/patients/:patientId/documents', upload.single('document'), async (
     });
 
     if (!patient) {
-      if (req.file) {
-        fs.unlinkSync(req.file.path); // Clean up uploaded file
-      }
       return res.status(404).json({
         success: false,
         error: 'Patient profile not found',
@@ -72,7 +60,8 @@ router.post('/patients/:patientId/documents', upload.single('document'), async (
     }
 
     const fileExt = path.extname(req.file.originalname).toLowerCase().replace('.', '');
-    const filename = req.file.filename;
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const filename = `doc-${uniqueSuffix}.${fileExt}`;
     const reqHost = req.get('host');
     const signedUrl = generateSignedUrl(filename, reqHost);
 
@@ -92,7 +81,7 @@ router.post('/patients/:patientId/documents', upload.single('document'), async (
     let ocrText = null;
     let status = 'COMPLETED';
     try {
-      ocrText = await extractTextFromDocument(req.file.path, fileExt);
+      ocrText = await extractTextFromDocument(req.file.buffer, fileExt);
     } catch (ocrErr) {
       console.error('OCR Processing error:', ocrErr);
       status = 'FAILED';
