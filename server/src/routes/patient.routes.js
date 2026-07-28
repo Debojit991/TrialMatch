@@ -29,6 +29,40 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+// PUT /api/patients/:id - Update existing patient profile
+router.put('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const validatedData = validatePatientRegistration(req.body);
+
+    const existing = await prisma.patient.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: 'Patient profile not found',
+      });
+    }
+
+    const updated = await prisma.patient.update({
+      where: { id },
+      data: {
+        full_name: validatedData.full_name,
+        age: validatedData.age,
+        gender: validatedData.gender,
+        location: validatedData.location,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Patient profile updated successfully',
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/patients/:id - Retrieve patient profile by ID
 router.get('/:id', async (req, res, next) => {
   try {

@@ -701,6 +701,7 @@ const renderTrials = (trialsToRender) => {
             detailsContainer.innerHTML = `
                 <div><strong><i class="fas fa-user"></i> Name:</strong> ${userProfile.name || 'N/A'}</div>
                 <div><strong><i class="fas fa-birthday-cake"></i> Age:</strong> ${userProfile.age || 'Not Set'}</div>
+                <div><strong><i class="fas fa-venus-mars"></i> Gender:</strong> ${userProfile.gender || 'Not Set'}</div>
                 <div><strong><i class="fab fa-whatsapp"></i> WhatsApp:</strong> ${userProfile.whatsapp || 'Not Set'}</div>
                 <div><strong><i class="fas fa-envelope"></i> Email:</strong> ${userProfile.email || 'N/A'}</div>
             `;
@@ -1008,18 +1009,33 @@ document.getElementById('profile-form').addEventListener('submit', async (e) => 
     // This block correctly handles patient-specific fields
     if (userProfile.role === 'patient') {
         const newDob = document.getElementById('profile-dob').value;
+        const genderEl = document.getElementById('edit-gender') || document.getElementById('profile-gender');
+        const newGender = genderEl ? genderEl.value : 'Male';
         
-        // Save the date of birth
+        // Save the date of birth, age, and gender
         profileData.dob = newDob; 
-        
-        // Calculate and save the new age using the helper function
         profileData.age = calculateAge(newDob); 
+        profileData.gender = newGender;
 
         // Combine country code and phone number for WhatsApp
         const countryCode = document.getElementById('profile-country-code').value;
         const phoneNumber = document.getElementById('profile-phone-number').value;
         if (phoneNumber) {
             profileData.whatsapp = `${countryCode}${phoneNumber}`;
+        }
+
+        // Sync with Express backend API if patient session exists
+        if (typeof currentIngestionPatientId !== 'undefined' && currentIngestionPatientId) {
+            try {
+                await TrialMatchAPI.updatePatient(currentIngestionPatientId, {
+                    full_name: profileData.name || 'Patient User',
+                    age: profileData.age || 45,
+                    gender: (profileData.gender || 'MALE').toUpperCase(),
+                    location: userProfile.location || 'Not Specified',
+                });
+            } catch (apiErr) {
+                console.warn('Backend patient update warning:', apiErr.message);
+            }
         }
     }
     // --- FIX END ---
@@ -1070,6 +1086,7 @@ document.getElementById('profile-form').addEventListener('submit', async (e) => 
             
             // Get references to the input fields
             const patientDob = document.getElementById('profile-dob');
+            const patientGender = document.getElementById('edit-gender') || document.getElementById('profile-gender');
             const patientPhone = document.getElementById('profile-phone-number');
             const doctorSpec = document.getElementById('profile-specialization');
             const doctorLoc = document.getElementById('profile-location');
@@ -1090,11 +1107,16 @@ document.getElementById('profile-form').addEventListener('submit', async (e) => 
                 doctorSpec.required = true;
                 doctorLoc.required = true;
                 patientDob.required = false;
+                if (patientGender) patientGender.required = false;
                 patientPhone.required = false;
 
             } else {
                 document.getElementById('profile-modal-title').textContent = 'Edit Patient Profile';
                 patientDob.value = userProfile.dob || '';
+                if (patientGender) {
+                    patientGender.value = userProfile.gender || 'Male';
+                    patientGender.required = true;
+                }
                 
                 // --- FIX ---
                 // Make patient fields required, doctor fields not required
@@ -2450,12 +2472,13 @@ async function handleFileUpload(file) {
         if (!currentIngestionPatientId) {
             const dynamicName = (typeof userProfile !== 'undefined' && userProfile?.name) || document.getElementById('profile-name')?.value || 'Patient User';
             const dynamicAge = (typeof userProfile !== 'undefined' && userProfile?.age) ? parseInt(userProfile.age) : (document.getElementById('profile-dob')?.value ? calculateAge(document.getElementById('profile-dob').value) : 45);
+            const dynamicGender = (typeof userProfile !== 'undefined' && userProfile?.gender) || document.getElementById('edit-gender')?.value || 'MALE';
             const dynamicLocation = (typeof userProfile !== 'undefined' && userProfile?.location) || document.getElementById('location')?.value || document.getElementById('profile-location')?.value || 'Not Specified';
 
             const registered = await TrialMatchAPI.registerPatient({
                 full_name: dynamicName,
                 age: dynamicAge || 45,
-                gender: 'MALE',
+                gender: (dynamicGender || 'MALE').toUpperCase(),
                 location: dynamicLocation,
             });
             currentIngestionPatientId = registered.data.id;

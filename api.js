@@ -34,6 +34,33 @@ class TrialMatchAPI {
   }
 
   /**
+   * Update existing patient profile attributes
+   * @param {string} patientId 
+   * @param {Object} patientData - { full_name, age, gender, location }
+   * @returns {Promise<Object>} Response object containing updated patient profile
+   */
+  static async updatePatient(patientId, patientData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/patients/${patientId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(patientData),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update patient profile');
+      }
+      return data;
+    } catch (error) {
+      console.error('API updatePatient error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Fetch patient profile by ID
    * @param {string} patientId 
    * @returns {Promise<Object>}

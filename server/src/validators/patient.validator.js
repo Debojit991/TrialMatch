@@ -10,10 +10,13 @@ const patientRegistrationSchema = z.object({
     invalid_type_error: 'Age must be a number',
   }).int('Age must be an integer').gt(0, 'Age must be greater than 0'),
   
-  gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'], {
-    required_error: 'Gender is required',
-    invalid_type_error: 'Gender must be MALE, FEMALE, OTHER, or PREFER_NOT_TO_SAY',
-  }),
+  gender: z.preprocess(
+    (val) => (typeof val === 'string' ? val.toUpperCase() : val),
+    z.enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'], {
+      required_error: 'Gender is required',
+      invalid_type_error: 'Gender must be MALE, FEMALE, OTHER, or PREFER_NOT_TO_SAY',
+    })
+  ),
   
   location: z.string({
     required_error: 'Location is required',
