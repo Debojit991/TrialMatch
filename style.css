@@ -437,6 +437,21 @@ body.dark-mode .form-group textarea:focus {
         }
 
 
+        /* --- Document Gallery Layout --- */
+        .docs-gallery, #medical-docs-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            align-items: flex-start;
+            margin-top: 20px;
+        }
+
+        .doc-card-item, .doc-item {
+            position: relative;
+            width: 200px;
+            box-sizing: border-box;
+        }
+
         /* --- Trial Cards --- */
         #trials-container {
             display: grid;
@@ -446,13 +461,13 @@ body.dark-mode .form-group textarea:focus {
         }
         .trial-card {
             padding: 20px;
-            display: grid;
-            grid-template-rows: auto auto 1fr auto;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
             gap: 15px;
             border-left: 5px solid var(--primary-color);
             position: relative;
             overflow: hidden;
-            height: 100%;
             box-sizing: border-box;
         }
 
@@ -462,9 +477,11 @@ body.dark-mode .form-group textarea:focus {
             border-radius: 6px;
             font-size: 0.9rem;
             line-height: 1.5;
-            margin-bottom: 15px;
+            flex-grow: 1;
             max-height: 160px;
             overflow-y: auto;
+            padding-right: 8px;
+            margin-bottom: 1rem;
         }
 
         body.dark-mode .ai-criterion-explanation {

@@ -2843,7 +2843,7 @@ function createMatchedTrialCardHtml(matchItem, category) {
                 <p style="margin: 4px 0 0 0; color: #374151;">${explanation}</p>
             </div>
 
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <div class="actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: auto;">
                 <button class="btn btn-secondary btn-sm" onclick="alert('Trial details & contact protocol available in doctor review queue.')">
                     <i class="fas fa-info-circle"></i> View Details
                 </button>
