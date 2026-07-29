@@ -138,6 +138,28 @@ class TrialMatchAPI {
   }
 
   /**
+   * Delete specific document for a patient (Targeted Deletion & Master Profile Recalibration)
+   * @param {string} patientId 
+   * @param {string} docId 
+   * @returns {Promise<Object>}
+   */
+  static async deleteDocument(patientId, docId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/patients/${patientId}/documents/${docId}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete document');
+      }
+      return data;
+    } catch (error) {
+      console.error('API deleteDocument error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Phase 2: Trigger Gemini document assessment & Groq dynamic questionnaire generation
    * @param {string} patientId 
    * @returns {Promise<Object>}

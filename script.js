@@ -707,34 +707,8 @@ const renderTrials = (trialsToRender) => {
             `;
             card.classList.remove('d-none');
         };
-const renderMedicalDocs = () => {
-    const gallery = document.getElementById('medical-docs-gallery');
-    gallery.innerHTML = '';
-    
-    if (userProfile?.medicalDocuments?.length > 0) {
-        userProfile.medicalDocuments.forEach(doc => {
-            const div = document.createElement('div');
-            div.className = 'doc-item';
-            div.innerHTML = `
-                <img src="${doc.url}">
-                <div class="doc-zoom-btn" onclick="window.open('${doc.url}', '_blank')">View</div>
-                <button class="doc-delete-btn" onclick="deleteMedicalDoc('${doc.url}')"><i class="fas fa-trash"></i></button>
-            `;
-            gallery.appendChild(div);
-        });
-    } else {
-        gallery.innerHTML = '<p style="color:#888; width:100%;">No documents uploaded.</p>';
-    }
-};
-
-window.deleteMedicalDoc = async (url) => {
-    if(!confirm("Delete this document?")) return;
-    const docObj = userProfile.medicalDocuments.find(d => d.url === url);
-    await db.collection('users').doc(currentUser.uid).update({
-        medicalDocuments: firebase.firestore.FieldValue.arrayRemove(docObj)
-    });
-    userProfile.medicalDocuments = userProfile.medicalDocuments.filter(d => d.url !== url);
-    renderMedicalDocs();
+const renderMedicalDocs = async () => {
+    await renderMedicalDocsGallery();
 };
 
         const renderFavorites = () => {
@@ -2506,10 +2480,16 @@ async function handleFileUpload(file) {
         const qRes = await TrialMatchAPI.getPatientQuestionnaire(currentIngestionPatientId);
         if (progressBar) progressBar.style.width = '100%';
 
-        setTimeout(() => {
+        setTimeout(async () => {
             if (progressContainer) progressContainer.classList.add('d-none');
-            // Display uploaded document in gallery with View Document button
-            renderUploadedDocumentItem(file.name, ext, fileUrl);
+            // Fetch updated documents list and render full Document Gallery
+            try {
+                const docsRes = await TrialMatchAPI.getPatientDocuments(currentIngestionPatientId);
+                await renderMedicalDocsGallery(docsRes.data || []);
+            } catch (galleryErr) {
+                console.warn('Gallery render fallback:', galleryErr);
+                await renderMedicalDocsGallery();
+            }
             // Open Dynamic Questionnaire Modal
             openDynamicQuestionnaireModal(qRes.data);
         }, 500);
@@ -2530,47 +2510,119 @@ async function handleFileUpload(file) {
     }
 }
 
-// Render uploaded document thumbnail in gallery with Patient Portal "View Document" button
-function renderUploadedDocumentItem(fileName, ext, fileUrl = '') {
+// Render Document History / Gallery with Targeted Individual Deletion & Graceful Loading State
+async function renderMedicalDocsGallery(docsOverride = null) {
     const gallery = document.getElementById('medical-docs-gallery');
     if (!gallery) return;
-    const isImg = ['.jpg', '.jpeg', '.png'].includes(ext.toLowerCase());
-    const item = document.createElement('div');
-    item.className = 'doc-item';
-    item.style.cssText = 'border:1px solid #ddd; padding:10px; border-radius:8px; display:inline-block; margin-right:10px; margin-bottom:10px; text-align:center; max-width:160px; background:rgba(255,255,255,0.85);';
-    item.innerHTML = `
-        <div style="font-size:2.5rem; color:var(--primary-color);"><i class="fas ${isImg ? 'fa-file-image' : 'fa-file-pdf'}"></i></div>
-        <div style="font-size:0.8rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:5px;" title="${fileName}">${fileName}</div>
-        <span class="tag tag-condition" style="font-size:0.7rem; margin-top:4px; display:inline-block;">Processed</span>
-        <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-            ${fileUrl ? `<a href="${fileUrl}" target="_blank" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:4px 8px; width:100%; display:block;"><i class="fas fa-external-link-alt"></i> View Document</a>` : ''}
-            <button class="btn btn-danger btn-sm reset-session-btn" style="font-size:0.75rem; padding:4px 8px; width:100%; display:block;"><i class="fas fa-trash-alt"></i> Delete / Start Over</button>
-        </div>
-    `;
-    gallery.appendChild(item);
 
-    const btn = item.querySelector('.reset-session-btn');
-    if (btn) {
-        btn.addEventListener('click', async () => {
-            if (confirm('Are you sure you want to delete your uploaded medical history, questionnaire answers, and matched trials, and start over?')) {
-                const spinner = document.createElement('i');
-                spinner.className = 'fas fa-spinner fa-spin';
-                spinner.style.marginRight = '5px';
-                btn.disabled = true;
-                btn.prepend(spinner);
+    let docs = docsOverride;
+
+    if (!docs && typeof currentIngestionPatientId !== 'undefined' && currentIngestionPatientId) {
+        try {
+            const res = await TrialMatchAPI.getPatientDocuments(currentIngestionPatientId);
+            docs = res.data || [];
+        } catch (err) {
+            console.warn('Could not fetch patient documents from API:', err.message);
+        }
+    }
+
+    if (!docs) {
+        docs = (typeof userProfile !== 'undefined' && userProfile?.medicalDocuments) || [];
+    }
+
+    gallery.innerHTML = '';
+
+    if (!docs || docs.length === 0) {
+        gallery.innerHTML = `
+            <div style="color: #6b7280; font-size: 0.9rem; width: 100%; text-align: center; padding: 15px; border: 1px dashed rgba(156, 163, 175, 0.4); border-radius: 8px;">
+                <i class="fas fa-folder-open" style="font-size: 1.5rem; color: #9ca3af; margin-bottom: 5px; display: block;"></i>
+                No medical documents uploaded yet. Upload a report above to build your longitudinal profile.
+            </div>
+        `;
+        return;
+    }
+
+    const backendOrigin = (typeof API_BASE_URL !== 'undefined') ? API_BASE_URL.replace(/\/api$/, '') : 'http://localhost:5000';
+
+    docs.forEach((doc) => {
+        const docId = doc.id || doc.doc_id || doc.url;
+        const fileName = doc.file_name || doc.filename || doc.name || 'Medical Report';
+        let fileUrl = doc.signed_url || doc.file_url || doc.url || '';
+        if (fileUrl && !fileUrl.startsWith('http://') && !fileUrl.startsWith('https://')) {
+            fileUrl = `${backendOrigin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+        }
+        const fileType = (doc.file_type || fileName.split('.').pop() || 'pdf').toLowerCase();
+        const isImg = ['jpg', 'jpeg', 'png'].includes(fileType.replace('.', ''));
+        const uploadDateStr = doc.created_at || doc.upload_date
+            ? new Date(doc.created_at || doc.upload_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+            : 'Recently uploaded';
+        const summarySnippet = doc.extracted_summary || doc.ocr_extracted_text
+            ? (doc.extracted_summary || doc.ocr_extracted_text).substring(0, 60) + '...'
+            : 'AI Processed';
+
+        const item = document.createElement('div');
+        item.className = 'doc-card-item';
+        item.style.cssText = 'border:1px solid rgba(156,163,175,0.3); padding:12px; border-radius:10px; display:flex; flex-direction:column; align-items:center; text-align:center; min-width:160px; max-width:180px; background:rgba(255,255,255,0.85); box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-right:10px; margin-bottom:12px; transition:transform 0.2s;';
+
+        item.innerHTML = `
+            <div style="font-size:2.2rem; color:var(--primary-color); margin-bottom:6px;">
+                <i class="fas ${isImg ? 'fa-file-image' : 'fa-file-pdf'}"></i>
+            </div>
+            <div style="font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%;" title="${fileName}">
+                ${fileName}
+            </div>
+            <small style="font-size:0.72rem; color:#6b7280; margin-top:2px;">
+                <i class="fas fa-calendar-alt"></i> ${uploadDateStr}
+            </small>
+            <div style="font-size:0.75rem; color:#4b5563; margin-top:6px; background:rgba(238,242,255,0.7); padding:4px 6px; border-radius:4px; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${summarySnippet}">
+                ${summarySnippet}
+            </div>
+            <div style="margin-top:10px; display:flex; gap:6px; width:100%;">
+                ${fileUrl ? `<a href="${fileUrl}" target="_blank" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:4px 8px; flex-grow:1;"><i class="fas fa-external-link-alt"></i> View</a>` : ''}
+                <button class="btn btn-danger btn-sm target-doc-delete-btn" data-doc-id="${docId}" title="Delete document" style="font-size:0.75rem; padding:4px 8px; background-color:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer;">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        `;
+        gallery.appendChild(item);
+
+        // Targeted Deletion Click Handler with Graceful Loading State
+        const deleteBtn = item.querySelector('.target-doc-delete-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!confirm(`Are you sure you want to delete "${fileName}"? This will remove the document and recalibrate your master medical profile.`)) {
+                    return;
+                }
+
+                // Loading State (disable trash button & show spinner)
+                deleteBtn.disabled = true;
+                deleteBtn.style.opacity = '0.6';
+                deleteBtn.style.cursor = 'not-allowed';
+                deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
                 try {
-                    if (currentIngestionPatientId) {
-                        await TrialMatchAPI.deletePatient(currentIngestionPatientId);
+                    if (typeof currentIngestionPatientId !== 'undefined' && currentIngestionPatientId && docId) {
+                        const deleteRes = await TrialMatchAPI.deleteDocument(currentIngestionPatientId, docId);
+                        if (deleteRes && deleteRes.data && deleteRes.data.documents) {
+                            await renderMedicalDocsGallery(deleteRes.data.documents);
+                        } else {
+                            await renderMedicalDocsGallery();
+                        }
+                    } else {
+                        item.remove();
                     }
                 } catch (err) {
-                    console.error('Error deleting patient profile:', err);
-                    alert(`Failed to delete session on server: ${err.message}`);
-                } finally {
-                    resetSessionToUploadState();
+                    console.error('Targeted Document Deletion Error:', err);
+                    alert(`Failed to delete document: ${err.message}`);
+                    deleteBtn.disabled = false;
+                    deleteBtn.style.opacity = '1';
+                    deleteBtn.style.cursor = 'pointer';
+                    deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
                 }
-            }
-        });
-    }
+            });
+        }
+    });
 }
 
 // Open Dynamic Questionnaire Modal with Draft Persistence

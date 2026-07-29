@@ -194,6 +194,123 @@ router.get('/documents/:id', async (req, res, next) => {
   }
 });
 
+// DELETE /api/patients/:patientId/documents/:docId - Targeted Document Deletion & Master Profile Recalibration
+router.delete('/patients/:patientId/documents/:docId', async (req, res, next) => {
+  try {
+    const { patientId, docId } = req.params;
+
+    // 1. Verify document exists for patient
+    const document = await prisma.document.findFirst({
+      where: {
+        id: docId,
+        patient_id: patientId,
+      },
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        error: 'Document not found or does not belong to this patient.',
+      });
+    }
+
+    // 2. Remove physical file from uploads directory
+    try {
+      const localFilename = path.basename(document.file_url);
+      const filePath = path.join(UPLOADS_DIR, localFilename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (fsErr) {
+      console.warn('Could not remove physical file from storage:', fsErr.message);
+    }
+
+    // 3. Delete document database record
+    await prisma.document.delete({
+      where: { id: docId },
+    });
+
+    // 4. Recalibrate Master Patient Profile across remaining documents
+    const remainingDocs = await prisma.document.findMany({
+      where: {
+        patient_id: patientId,
+        upload_status: 'COMPLETED',
+      },
+      orderBy: { created_at: 'asc' },
+    });
+
+    const { assessPatientDocuments } = require('../services/ai.service');
+
+    if (remainingDocs.length === 0) {
+      // Clear assessment and match results if no documents remain
+      await prisma.documentAssessment.deleteMany({ where: { patient_id: patientId } });
+      await prisma.discrepancyFlag.deleteMany({ where: { patient_id: patientId } });
+      await prisma.patientMatchResult.deleteMany({ where: { patient_id: patientId } });
+    } else {
+      const concatenatedOcrText = remainingDocs
+        .map((doc, idx) => `--- Document ${idx + 1}: ${doc.file_name} ---\n${doc.ocr_extracted_text || ''}`)
+        .join('\n\n');
+
+      if (concatenatedOcrText.trim()) {
+        try {
+          const recalibratedData = await assessPatientDocuments(concatenatedOcrText);
+          await prisma.documentAssessment.upsert({
+            where: { patient_id: patientId },
+            update: {
+              suspected_condition: recalibratedData.suspected_condition,
+              disease_stage: recalibratedData.disease_stage,
+              diagnosis_date: recalibratedData.diagnosis_date,
+              medications_listed: recalibratedData.medications_listed,
+              key_lab_values: recalibratedData.key_lab_values,
+              raw_summary: recalibratedData.raw_summary,
+            },
+            create: {
+              patient_id: patientId,
+              suspected_condition: recalibratedData.suspected_condition,
+              disease_stage: recalibratedData.disease_stage,
+              diagnosis_date: recalibratedData.diagnosis_date,
+              medications_listed: recalibratedData.medications_listed,
+              key_lab_values: recalibratedData.key_lab_values,
+              raw_summary: recalibratedData.raw_summary,
+            },
+          });
+        } catch (recalErr) {
+          console.error('Profile recalibration warning:', recalErr.message);
+        }
+      }
+    }
+
+    // 5. Fetch updated patient profile with remaining documents
+    const updatedPatient = await prisma.patient.findUnique({
+      where: { id: patientId },
+      include: {
+        documents: true,
+        documentAssessment: true,
+      },
+    });
+
+    const reqHost = req.get('host');
+    const formattedDocs = (updatedPatient.documents || []).map((doc) => ({
+      ...doc,
+      doc_id: doc.id,
+      filename: doc.file_name,
+      upload_date: doc.created_at,
+      signed_url: generateSignedUrl(path.basename(doc.file_url), reqHost),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      message: 'Document deleted successfully and Master Patient Profile recalibrated.',
+      data: {
+        ...updatedPatient,
+        documents: formattedDocs,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/documents/file/:filename - Secure file streaming endpoint
 router.get('/documents/file/:filename', (req, res) => {
   const { filename } = req.params;

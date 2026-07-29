@@ -465,10 +465,112 @@ Perform Stage 2 criterion evaluation now.`;
   }
 }
 
+/**
+ * Merge newly extracted medical assessment with existing Master Patient Profile
+ * Ensures unique condition and medication deduplication.
+ */
+function mergeAssessmentData(existing, newData) {
+  if (!existing) return newData;
+
+  const extractConditions = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    val = String(val).trim();
+    if (val.startsWith('[') && val.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return val.split(/[,;\n]+/).map((s) => s.trim());
+  };
+
+  const existingConds = extractConditions(existing.suspected_condition);
+  const newConds = extractConditions(newData.suspected_condition);
+  const seenConds = new Set();
+  const mergedConds = [];
+
+  [...existingConds, ...newConds].forEach((c) => {
+    const trimmed = String(c || '').trim();
+    const lower = trimmed.toLowerCase();
+    if (trimmed && lower !== 'not specified' && lower !== 'unknown' && lower !== 'none listed' && !seenConds.has(lower)) {
+      seenConds.add(lower);
+      mergedConds.push(trimmed);
+    }
+  });
+
+  const finalCondition = mergedConds.length === 0
+    ? (newData.suspected_condition || existing.suspected_condition || 'Not specified')
+    : mergedConds.length === 1
+      ? mergedConds[0]
+      : JSON.stringify(mergedConds);
+
+  const extractMedications = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    val = String(val).trim();
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+    return val.split(/[,;\n]+/).map((s) => s.trim());
+  };
+
+  const existingMeds = extractMedications(existing.medications_listed);
+  const newMeds = extractMedications(newData.medications_listed);
+  const seenMeds = new Set();
+  const mergedMeds = [];
+
+  [...existingMeds, ...newMeds].forEach((m) => {
+    const trimmed = String(m || '').trim();
+    const lower = trimmed.toLowerCase();
+    if (trimmed && lower !== 'none listed' && lower !== 'not specified' && !seenMeds.has(lower)) {
+      seenMeds.add(lower);
+      mergedMeds.push(trimmed);
+    }
+  });
+
+  const finalMedications = JSON.stringify(mergedMeds.length > 0 ? mergedMeds : ['None listed']);
+
+  let finalLabValues = existing.key_lab_values || 'None listed';
+  const newLab = newData.key_lab_values || '';
+  if (newLab && newLab !== 'None listed' && newLab !== 'Not specified') {
+    if (!finalLabValues || finalLabValues === 'None listed' || finalLabValues === 'Not specified') {
+      finalLabValues = newLab;
+    } else if (!finalLabValues.includes(newLab)) {
+      finalLabValues = `${finalLabValues} | ${newLab}`;
+    }
+  }
+
+  const finalStage = (newData.disease_stage && newData.disease_stage !== 'Not specified')
+    ? newData.disease_stage
+    : (existing.disease_stage || 'Not specified');
+
+  const finalDate = (newData.diagnosis_date && newData.diagnosis_date !== 'Not specified')
+    ? newData.diagnosis_date
+    : (existing.diagnosis_date || 'Not specified');
+
+  let finalSummary = existing.raw_summary || '';
+  const newSummary = newData.raw_summary || '';
+  if (newSummary && !finalSummary.includes(newSummary)) {
+    finalSummary = finalSummary ? `${finalSummary}\n\n[Updated Report Summary]: ${newSummary}` : newSummary;
+  }
+
+  return {
+    suspected_condition: finalCondition,
+    disease_stage: finalStage,
+    diagnosis_date: finalDate,
+    medications_listed: finalMedications,
+    key_lab_values: finalLabValues,
+    raw_summary: finalSummary,
+  };
+}
+
 module.exports = {
   DocumentAssessmentError,
   assessPatientDocuments,
   generateDynamicQuestionnaire,
   crossValidatePatientData,
   matchPatientToTrials,
+  mergeAssessmentData,
 };

@@ -6,6 +6,7 @@ const {
   generateDynamicQuestionnaire,
   crossValidatePatientData,
   matchPatientToTrials,
+  mergeAssessmentData,
 } = require('../services/ai.service');
 
 // POST /api/patients/:patientId/assess-documents
@@ -19,6 +20,7 @@ router.post('/patients/:patientId/assess-documents', async (req, res, next) => {
         documents: {
           where: { upload_status: 'COMPLETED' },
         },
+        documentAssessment: true,
       },
     });
 
@@ -47,26 +49,40 @@ router.post('/patients/:patientId/assess-documents', async (req, res, next) => {
       });
     }
 
-    const extractedData = await assessPatientDocuments(concatenatedOcrText);
+    const newlyExtractedData = await assessPatientDocuments(concatenatedOcrText);
+
+    // Update each completed document's extracted_summary
+    for (const doc of patient.documents) {
+      await prisma.document.update({
+        where: { id: doc.id },
+        data: {
+          extracted_summary: newlyExtractedData.raw_summary || 'Document extracted.',
+        },
+      });
+    }
+
+    // Merge with existing Master Patient Profile (deduplicate conditions, medications, labs)
+    const existingAssessment = patient.documentAssessment;
+    const mergedData = mergeAssessmentData(existingAssessment, newlyExtractedData);
 
     const documentAssessment = await prisma.documentAssessment.upsert({
       where: { patient_id: patientId },
       update: {
-        suspected_condition: extractedData.suspected_condition,
-        disease_stage: extractedData.disease_stage,
-        diagnosis_date: extractedData.diagnosis_date,
-        medications_listed: extractedData.medications_listed,
-        key_lab_values: extractedData.key_lab_values,
-        raw_summary: extractedData.raw_summary,
+        suspected_condition: mergedData.suspected_condition,
+        disease_stage: mergedData.disease_stage,
+        diagnosis_date: mergedData.diagnosis_date,
+        medications_listed: mergedData.medications_listed,
+        key_lab_values: mergedData.key_lab_values,
+        raw_summary: mergedData.raw_summary,
       },
       create: {
         patient_id: patientId,
-        suspected_condition: extractedData.suspected_condition,
-        disease_stage: extractedData.disease_stage,
-        diagnosis_date: extractedData.diagnosis_date,
-        medications_listed: extractedData.medications_listed,
-        key_lab_values: extractedData.key_lab_values,
-        raw_summary: extractedData.raw_summary,
+        suspected_condition: mergedData.suspected_condition,
+        disease_stage: mergedData.disease_stage,
+        diagnosis_date: mergedData.diagnosis_date,
+        medications_listed: mergedData.medications_listed,
+        key_lab_values: mergedData.key_lab_values,
+        raw_summary: mergedData.raw_summary,
       },
     });
 
