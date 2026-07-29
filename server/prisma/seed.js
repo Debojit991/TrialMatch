@@ -1,7 +1,29 @@
+require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const sampleTrials = [
+  {
+    trial_code: 'NCT08877665',
+    title: 'Phase III Trial of Novel Oral Antibiotic for Community-Acquired Bacterial Pneumonia',
+    disease_category: 'Bacterial Pneumonia',
+    phase: 'Phase III',
+    min_age: 18,
+    max_age: 80,
+    gender_requirement: 'ALL',
+    location: 'New York, NY',
+    inclusion_criteria: JSON.stringify([
+      'Confirmed diagnosis of mild-to-moderate Community-Acquired Bacterial Pneumonia (CAP)',
+      'Prescribed Amoxicillin or similar first-line antibiotic',
+      'Outpatient treatment status',
+    ]),
+    exclusion_criteria: JSON.stringify([
+      'Known allergy to penicillin',
+      'Severe pneumonia requiring ICU admission or mechanical ventilation',
+      'Atypical pneumonia features',
+    ]),
+    status: 'RECRUITING',
+  },
   {
     trial_code: 'NCT05112233',
     title: 'Phase III Study of Novel GLP-1/GIP Receptor Agonist in Uncontrolled Type 2 Diabetes',
