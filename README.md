@@ -57,6 +57,90 @@ flowchart TD
 
 ---
 
+## 📊 System Workflows & Architecture Diagrams
+
+### 1. Patient-Side Workflow (App Execution)
+```mermaid
+flowchart TD
+    A["Patient Registration / Login"] --> B["Profile Setup (Age, Gender, Location)"]
+    B --> C["Upload Medical Documents (PDF, JPG, PNG)"]
+    C --> D["AI Document Ingestion & Longitudinal Aggregation"]
+    D --> E["AI Generates Dynamic Screening Questionnaire"]
+    E --> F["Patient Submits Screening Answers"]
+    F --> G["Display Matched Clinical Trials & Ranked Doctors"]
+```
+
+### 2. Doctor-Side Workflow (App Execution)
+```mermaid
+flowchart TD
+    A["Doctor Login / Auth"] --> B["Doctor Portal Dashboard UI"]
+    B --> C["View Patient Review Queue & Applications"]
+    C --> D["Inspect AI Extracted Medical Record & Match Scores"]
+    D --> E["Inspect Discrepancy Audit Flags"]
+    E --> F{"Human-in-the-Loop (HITL) Decision"}
+    F -- Approve Match --> G["Mark Application Approved & Send Connection Notice"]
+    F -- Reject / Request Info --> H["Update Status & Request Additional Clinical Data"]
+```
+
+### 3. API Execution & Multi-Agent Pipeline
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Frontend Client
+    participant Router as API Gateway / Express Router
+    participant Orch as Agent Orchestrator (ai.service.js)
+    participant Agent1 as Agent 1 (Vision Extraction)
+    participant DB as PostgreSQL / Prisma DB
+    participant Agent2 as Agent 2 (Reasoning & Matching)
+    participant Agent3 as Agent 3 (Geospatial Doctor Routing)
+
+    Client->>Router: POST /api/patients/:id/assess-documents
+    Router->>Orch: Trigger Agentic Workflow
+    Orch->>Agent1: extractAndNormalizeDoc(buffer, ocrText)
+    Agent1-->>Orch: Structured Clinical JSON
+    Orch->>DB: Upsert DocumentAssessment & Deduplicate Master Profile
+    Orch->>Agent2: generateDynamicQuestionnaire(assessment)
+    Agent2-->>Orch: 5-7 Dynamic Screening Questions
+    Orch-->>Client: Assessment & Screening Questions Response
+    
+    Client->>Router: POST /api/patients/:id/find-trials
+    Router->>Agent2: matchPatientToTrials(patientId)
+    Agent2->>DB: Stage 1 SQL Protocol Query
+    DB-->>Agent2: Candidate Clinical Trials
+    Agent2-->>Orch: Stage 2 LLM Criteria Evaluation & Rank Scores (1-100)
+    Orch->>Agent3: matchDoctorsForPatient(patientId)
+    Agent3-->>Orch: Haversine Proximity Rankings & Site Logistics
+    Orch-->>Client: Matched Trials & Ranked Doctors JSON Response
+```
+
+### 4. Human-in-the-Loop (HITL) Decision Sequence
+```mermaid
+stateDiagram-v2
+    [*] --> AIScreeningComplete: AI Matching & Discrepancy Audit Finished
+    AIScreeningComplete --> PendingClinicalReview: Application Queued for Doctor Review
+    PendingClinicalReview --> DoctorInspection: Doctor Reviews AI Extraction & Audit Flags
+
+    state DoctorInspection {
+        [*] --> ReviewMedicalHistory
+        ReviewMedicalHistory --> EvaluateDiscrepancies
+        EvaluateDiscrepancies --> FinalDecision
+    }
+
+    DoctorInspection --> Approved: Clinician Approves Match
+    DoctorInspection --> Rejected: Clinician Rejects Match
+    DoctorInspection --> MoreInfoNeeded: Clinician Requests Data
+
+    Approved --> PatientEnrolled: Patient Enrolled in Clinical Trial Protocol
+    Rejected --> SystemRecalibrated: Master Profile Recalibrated
+    MoreInfoNeeded --> PatientNotified: Patient Prompted for Information
+
+    SystemRecalibrated --> [*]
+    PatientEnrolled --> [*]
+    PatientNotified --> [*]
+```
+
+---
+
 ## 🛠️ Tech Stack & Infrastructure
 
 | Layer | Technology | Description |
