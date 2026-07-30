@@ -139,6 +139,53 @@ stateDiagram-v2
     PatientNotified --> [*]
 ```
 
+### 5. Prescription & Medical Document Extraction Pipeline
+```mermaid
+flowchart TD
+    %% ── Ingestion Layer ──────────────────────────────────────────────────
+    A["🧑‍⚕️ User Uploads Document\n(JPG / PNG / PDF)\nPrescription or Lab Report"]
+    A --> B["📡 Express.js Router\nReceives Multipart Request\nvia Multer — In-Memory Storage\nreq.file.buffer"]
+
+    %% ── Parallel Ingestion Engine ────────────────────────────────────────
+    B --> C{"⚡ Parallel Ingestion Engine\nFork to Two Branches"}
+
+    C --> D["☁️ Branch A — Cloudinary Helper\nupload_stream\nStreams Buffer Directly to Cloud\nAudit Trail & Document Viewer URL"]
+    C --> E["🤖 Branch B — Agent 1\nonboardingAgent.js\nReceives In-Memory Buffer\nfor Vision AI Analysis"]
+
+    %% ── Multi-Modal Vision Processing ────────────────────────────────────
+    E --> F["👁️ Google Gemini 2.0 / 1.5 Flash\nMulti-Modal Vision AI\nClinical OCR & Document Parsing"]
+
+    F --> G["📋 Extracted Clinical Entities\n• Suspected Conditions\n• Medication Names & Dosages\n• Frequency & Duration\n• Key Lab Values\n• Outpatient / Inpatient Status"]
+
+    %% ── Clinical Normalization & Deduplication ───────────────────────────
+    G --> H["🔧 JSON Normalizer Tool\nCleans Raw String Output\nStandardizes Schema Fields"]
+
+    H --> I["🔁 Set-Based Deduplication Engine\nMerges New Entities with\nMaster Patient Profile\nPrevents Duplicate Condition Records\ne.g. — de-dupes multiple 'Type 2 Diabetes' entries"]
+
+    I --> J[("🗂️ Master Patient Profile\nLongitudinal Aggregated Record\nAll Previous Documents Included")]
+    J --> I
+
+    %% ── Persistence Layer ────────────────────────────────────────────────
+    I --> K["💾 PostgreSQL via Prisma ORM\nSaves DocumentAssessment Record\nStores extracted_summary JSON\nLinks Cloudinary Document URL"]
+    D --> K
+
+    K --> L["🚀 Pass Aggregated Profile JSON\nto Agent 2 — Matching Engine\nrecommendationAgent.js"]
+
+    %% ── Styling ──────────────────────────────────────────────────────────
+    style A fill:#1e3a5f,color:#ffffff,stroke:#4a90d9,stroke-width:2px
+    style B fill:#1a3a2a,color:#ffffff,stroke:#4caf50,stroke-width:2px
+    style C fill:#3d2b00,color:#ffffff,stroke:#f5a623,stroke-width:2px
+    style D fill:#2a1a3a,color:#ffffff,stroke:#9b59b6,stroke-width:2px
+    style E fill:#1a2a3a,color:#ffffff,stroke:#3498db,stroke-width:2px
+    style F fill:#1a3a2a,color:#ffffff,stroke:#00bcd4,stroke-width:2px
+    style G fill:#1a3a2a,color:#ffffff,stroke:#4caf50,stroke-width:2px
+    style H fill:#3a1a1a,color:#ffffff,stroke:#e74c3c,stroke-width:2px
+    style I fill:#3d2b00,color:#ffffff,stroke:#f5a623,stroke-width:2px
+    style J fill:#1e3a5f,color:#ffffff,stroke:#4a90d9,stroke-width:3px
+    style K fill:#1a3a2a,color:#ffffff,stroke:#4caf50,stroke-width:2px
+    style L fill:#2a1a3a,color:#ffffff,stroke:#9b59b6,stroke-width:2px
+```
+
 ---
 
 ## 🛠️ Tech Stack & Infrastructure
